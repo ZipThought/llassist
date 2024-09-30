@@ -7,6 +7,7 @@ public class ApplicationDbContext : DbContext
 {
     public DbSet<Project> Projects { get; set; }
     public DbSet<Article> Articles { get; set; }
+    public DbSet<EstimateRelevanceJob> EstimateRelevanceJobs { get; set; }
 
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
@@ -22,6 +23,9 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Project>().Property(e => e.Id).HasConversion(ulidToStringConverter);
         modelBuilder.Entity<Article>().Property(e => e.Id).HasConversion(ulidToStringConverter);
         modelBuilder.Entity<Article>().Property(e => e.ProjectId).HasConversion(ulidToStringConverter);
+        modelBuilder.Entity<Article>().Property(e => e.EstimateRelevanceJobId).HasConversion(ulidToStringConverter);
+        modelBuilder.Entity<EstimateRelevanceJob>().Property(e => e.Id).HasConversion(ulidToStringConverter);
+        modelBuilder.Entity<EstimateRelevanceJob>().Property(e => e.ProjectId).HasConversion(ulidToStringConverter);
 
         // Apply configurations
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);

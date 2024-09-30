@@ -14,6 +14,7 @@ public class Article : IEntity<Ulid>
     public KeySemantics KeySemantics { get; set; } = new KeySemantics();
     public bool MustRead { get; set; }
     public IList<Relevance> Relevances { get; set; } = [];
+    public Ulid? EstimateRelevanceJobId { get; set; }
     [JsonIgnore]
     public virtual Project Project { get; set; } = null!;
     public Ulid ProjectId { get; set; }

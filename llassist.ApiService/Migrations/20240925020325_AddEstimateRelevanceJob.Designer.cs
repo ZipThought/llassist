@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using llassist.ApiService.Repositories;
@@ -11,9 +12,11 @@ using llassist.ApiService.Repositories;
 namespace llassist.ApiService.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20240925020325_AddEstimateRelevanceJob")]
+    partial class AddEstimateRelevanceJob
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -37,9 +40,6 @@ namespace llassist.ApiService.Migrations
 
                     b.Property<string>("DOI")
                         .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("EstimateRelevanceJobId")
                         .HasColumnType("text");
 
                     b.Property<string>("Link")
@@ -84,8 +84,6 @@ namespace llassist.ApiService.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("ProjectId");
 
                     b.ToTable("EstimateRelevanceJobs", (string)null);
                 });

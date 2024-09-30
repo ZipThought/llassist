@@ -12,14 +12,17 @@ namespace llassist.ApiService.Controllers;
 public class ProjectController : ControllerBase
 {
     private readonly ProjectService _projectService;
-    private readonly NLPService _nlpService;
+    private readonly INLPService _nlpService;
     private readonly ILogger<ProjectController> _logger;
 
-    public ProjectController(ProjectService projectService, NLPService nlpService, ILogger<ProjectController> logger)
+    private readonly EstimateRelevanceService _estimateRelevanceService;
+
+    public ProjectController(ProjectService projectService, INLPService nlpService, ILogger<ProjectController> logger, EstimateRelevanceService estimateRelevanceService)
     {
         _projectService = projectService;
         _nlpService = nlpService;
         _logger = logger;
+        _estimateRelevanceService = estimateRelevanceService;
     }
 
     [HttpPost("create")]
@@ -37,6 +40,7 @@ public class ProjectController : ControllerBase
         {
             return NotFound();
         }
+
         return Ok(project);
     }
 
@@ -90,10 +94,13 @@ public class ProjectController : ControllerBase
     [HttpGet("process/{projectId}")]
     public async Task<IActionResult> ProcessArticles(string projectId)
     {
-        // Retrieve articles based on the id
-        // Process articles using NLPService
-        // Update progress and results
         var project = await _projectService.GetProjectAsync(Ulid.Parse(projectId));
+        if (project == null)
+        {
+            return NotFound();
+        }
+
+        await _estimateRelevanceService.EnqueuePreprocessingTask(Ulid.Parse(projectId));
 
         return Ok(project);
     }
