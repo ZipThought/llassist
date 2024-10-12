@@ -5,24 +5,25 @@
 namespace llassist.ApiService.Migrations
 {
     /// <inheritdoc />
-    public partial class AddEstimateRelevanceJobIdToArticle : Migration
+    public partial class AddCompletedArticleCountToJob : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "EstimateRelevanceJobId",
-                table: "Articles",
-                type: "text",
-                nullable: true);
+            migrationBuilder.AddColumn<int>(
+                name: "CompletedArticles",
+                table: "EstimateRelevanceJobs",
+                type: "integer",
+                nullable: false,
+                defaultValue: 0);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "EstimateRelevanceJobId",
-                table: "Articles");
+                name: "CompletedArticles",
+                table: "EstimateRelevanceJobs");
         }
     }
 }

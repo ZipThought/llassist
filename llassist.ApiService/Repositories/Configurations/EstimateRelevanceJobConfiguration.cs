@@ -1,7 +1,7 @@
-﻿using llassist.Common.Models;
+﻿using llassist.ApiService.Repositories.Converters;
+using llassist.Common.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace llassist.ApiService.Repositories.Configurations;
 
@@ -10,25 +10,22 @@ public class EstimateRelevanceJobConfiguration : IEntityTypeConfiguration<Estima
     public void Configure(EntityTypeBuilder<EstimateRelevanceJob> builder)
     {
         builder.ToTable("EstimateRelevanceJobs");
-        builder.HasKey(j => j.Id);
-        builder.HasIndex(j => j.ProjectId);
-        builder.Property(j => j.CreatedAt)
-            .HasConversion(new UtcDateTimeOffsetConverter());
-        builder.OwnsOne(j => j.ResearchQuestions, builder =>
-        {
-            builder.ToJson();
-            builder.OwnsMany(j => j.Questions);
-        });
-    }
-}
 
-public class UtcDateTimeOffsetConverter : ValueConverter<DateTimeOffset, DateTime>
-{
-    // Always stores in UTC
-    public UtcDateTimeOffsetConverter()
-        : base(
-            dto => dto.UtcDateTime,
-            dt => new DateTimeOffset(DateTime.SpecifyKind(dt, DateTimeKind.Utc)))
-    {
+        builder.HasKey(erj => erj.Id);
+        builder.Property(erj => erj.Id)
+            .HasConversion(new UlidToStringConverter());
+
+        builder.Property(erj => erj.CreatedAt)
+            .HasConversion(new UtcDateTimeOffsetConverter());
+
+        builder.HasIndex(erj => erj.ProjectId);
+        builder.Property(erj => erj.ProjectId)
+            .IsRequired()
+            .HasConversion(new UlidToStringConverter());
+
+        builder.HasMany(erj => erj.Snapshots)
+            .WithOne(s => s.EstimateRelevanceJob)
+            .HasForeignKey(s => s.EstimateRelevanceJobId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

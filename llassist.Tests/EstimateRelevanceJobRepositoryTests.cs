@@ -1,109 +1,85 @@
 ﻿using llassist.ApiService.Repositories;
 using llassist.ApiService.Repositories.Specifications;
+using llassist.Common;
 using llassist.Common.Models;
-using Xunit;
+using Microsoft.EntityFrameworkCore;
 using Assert = Xunit.Assert;
 
 namespace llassist.Tests;
 
-public class EstimateRelevanceJobRepositoryTests : IClassFixture<DatabaseFixture>, IDisposable
+public class EstimateRelevanceJobRepositoryTests(DatabaseFixture fixture) : BaseRepositoryTests<Ulid, EstimateRelevanceJob, EstimateRelevanceJobSearchSpec>(fixture)
 {
-    private readonly ApplicationDbContext _context;
-    private readonly EstimateRelevanceJobRepository _repository;
-
-    private readonly EstimateRelevanceJob EstimateRelevanceJob;
-
-    public EstimateRelevanceJobRepositoryTests(DatabaseFixture fixture)
+    protected override ICRUDRepository<Ulid, EstimateRelevanceJob, EstimateRelevanceJobSearchSpec> CreateRepository(ApplicationDbContext context)
     {
-        _context = fixture.CreateContext();
-        _repository = new EstimateRelevanceJobRepository(_context);
+        return new EstimateRelevanceJobRepository(context);
+    }
 
-        var project = fixture.Project;
-        Assert.NotNull(project);
-
-        EstimateRelevanceJob = new EstimateRelevanceJob
+    protected override EstimateRelevanceJob CreateTestEntity(Project project)
+    {
+        return new EstimateRelevanceJob
         {
             Id = Ulid.NewUlid(),
-            ModelName = "model-name",
+            ModelName = "Sample Model Name",
+            CreatedAt = DateTimeOffset.UtcNow,
+            TotalArticles = 11,
             ProjectId = project.Id,
-            CreatedAt = DateTime.UtcNow,
-            ResearchQuestions = new ResearchQuestionsSnapshot
-            {
-                Definitions = ["definitions-1", "definitions-2"],
-                Questions =
-                [
-                    new() {
-                        Text = "text-1",
-                        Definitions = ["definitions-5", "definitions-6"]
-                    },
-                    new() {
-                        Text = "text-2",
-                        Definitions = ["definitions-3", "definitions-4"]
-                    }
-                ]
-            }
+            Snapshots = [],
         };
     }
 
-    [Fact]
-    public async Task CRUDJob()
+    protected override DbSet<EstimateRelevanceJob> GetDbSet(ApplicationDbContext context)
     {
-        // Create then read
-        await _repository.CreateAsync(EstimateRelevanceJob);
-
-        var readJob = await _repository.ReadAsync(EstimateRelevanceJob.Id);
-        VerifyJob(readJob);
-
-        // Update then find from read-with-search-spec
-        EstimateRelevanceJob.ModelName = "Updated model-name";
-        await _repository.UpdateAsync(EstimateRelevanceJob);
-
-        var jobsByProjectId = await _repository.ReadWithSearchSpecAsync(
-            new EstimateRelevanceJobSearchSpec
-            {
-                ProjectId = EstimateRelevanceJob.ProjectId
-            });
-        EstimateRelevanceJob? foundJob = null;
-        foreach (var job in jobsByProjectId)
-        {
-            if (job.Id == EstimateRelevanceJob.Id)
-            {
-                foundJob = job;
-            }
-        }
-        VerifyJob(foundJob);
-
-        // Delete then read
-        await _repository.DeleteAsync(EstimateRelevanceJob.Id);
-        readJob = await _repository.ReadAsync(EstimateRelevanceJob.Id);
-        Assert.Null(readJob);
+        return context.EstimateRelevanceJobs;
     }
 
-    private void VerifyJob(EstimateRelevanceJob? job)
+    protected override async Task UpdateThenRead()
     {
-        Assert.NotNull(job);
-        Assert.Equal(job.ModelName, EstimateRelevanceJob.ModelName);
-        Assert.Equal(job.ProjectId, EstimateRelevanceJob.ProjectId);
-        Assert.Equal(job.CreatedAt, EstimateRelevanceJob.CreatedAt);
-        Assert.Equal(job.ResearchQuestions.Definitions, EstimateRelevanceJob.ResearchQuestions.Definitions);
-        Assert.Equal(job.ResearchQuestions.Questions.Count, EstimateRelevanceJob.ResearchQuestions.Questions.Count);
-        for (var i = 0; i < job.ResearchQuestions.Questions.Count; i++)
+        // Read for update
+        var repository = CreateRepository();
+        var updateEntity = await repository.ReadAsync(TestEntity.Id);
+        Assert.NotNull(updateEntity);
+
+        // Update
+        updateEntity.TotalArticles = 20;
+        updateEntity.Snapshots.Add(new Snapshot
         {
-            Assert.Equal(job.ResearchQuestions.Questions[i].Text, EstimateRelevanceJob.ResearchQuestions.Questions[i].Text);
-            Assert.Equal(job.ResearchQuestions.Questions[i].Definitions, EstimateRelevanceJob.ResearchQuestions.Questions[i].Definitions);
-        }
+            Id = Ulid.NewUlid(),
+            EntityType = "Sample Entity Type",
+            EntityId = Ulid.NewUlid(),
+            SerializedEntity = "Sample Serialized Entity",
+            CreatedAt = DateTimeOffset.UtcNow,
+            EstimateRelevanceJobId = updateEntity.Id,
+        });
+        await repository.UpdateAsync(updateEntity);
+
+        // Read
+        var readEntity = await CreateRepository().ReadAsync(updateEntity.Id);
+        Assert.NotNull(readEntity);
+
+        LogEntity(readEntity);
+        VerifyEntity(updateEntity, readEntity);
     }
 
-    public void Dispose()
+    protected override void VerifyEntity(EstimateRelevanceJob expected, EstimateRelevanceJob actual)
     {
-        try
+        Assert.Equal(expected.Id, actual.Id);
+        Assert.Equal(expected.ModelName, actual.ModelName);
+        VerifyDateTimeOffset(expected.CreatedAt, actual.CreatedAt);
+        Assert.Equal(expected.TotalArticles, actual.TotalArticles);
+        Assert.Equal(expected.ProjectId, actual.ProjectId);
+
+        // Verify Snapshots
+        Assert.Equal(expected.Snapshots.Count, actual.Snapshots.Count);
+        var expectedSnapshots = expected.Snapshots.ToList();
+        var resultSnapshots = actual.Snapshots.ToList();
+        for (int i = 0; i < expected.Snapshots.Count; i++)
         {
-            _context.EstimateRelevanceJobs.Remove(EstimateRelevanceJob);
-            _context.SaveChanges();
-        }
-        catch (Exception)
-        {
-            // Ignore the error if the row is already removed
+            Assert.Equal(expectedSnapshots[i].Id, resultSnapshots[i].Id);
+            Assert.Equal(expectedSnapshots[i].EntityType, resultSnapshots[i].EntityType);
+            Assert.Equal(expectedSnapshots[i].EntityId, resultSnapshots[i].EntityId);
+            Assert.Equal(expectedSnapshots[i].SerializedEntity, resultSnapshots[i].SerializedEntity);
+            VerifyDateTimeOffset(expectedSnapshots[i].CreatedAt, resultSnapshots[i].CreatedAt);
+            Assert.Equal(expectedSnapshots[i].EstimateRelevanceJobId, resultSnapshots[i].EstimateRelevanceJobId);
         }
     }
 }

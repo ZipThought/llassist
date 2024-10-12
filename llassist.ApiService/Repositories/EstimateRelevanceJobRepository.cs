@@ -1,60 +1,28 @@
 ﻿using llassist.ApiService.Repositories.Specifications;
-using llassist.Common;
 using llassist.Common.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace llassist.ApiService.Repositories;
 
-public class EstimateRelevanceJobRepository : ICRUDRepository<Ulid, EstimateRelevanceJob, EstimateRelevanceJobSearchSpec>
+public class EstimateRelevanceJobRepository(ApplicationDbContext context) : CRUDBaseRepository<Ulid, EstimateRelevanceJob, EstimateRelevanceJobSearchSpec>(context)
 {
-    private readonly ApplicationDbContext _context;
-
-    public EstimateRelevanceJobRepository(ApplicationDbContext context)
+    public override DbSet<EstimateRelevanceJob> GetDbSet()
     {
-        _context = context;
+        return _context.EstimateRelevanceJobs;
     }
 
-    public async Task<EstimateRelevanceJob> CreateAsync(EstimateRelevanceJob job)
+    public override async Task<EstimateRelevanceJob?> ReadAsync(Ulid id)
     {
-        _context.EstimateRelevanceJobs.Add(job);
-        await _context.SaveChangesAsync();
-        return job;
+        return await GetDbSet()
+            .Include(erj => erj.Snapshots.OrderBy(s => s.Id))
+            .FirstOrDefaultAsync(erj => erj.Id == id);
     }
 
-    public async Task<bool> DeleteAsync(Ulid id)
+    public override async Task<IEnumerable<EstimateRelevanceJob>> ReadWithSearchSpecAsync(EstimateRelevanceJobSearchSpec searchSpec)
     {
-        var job = _context.EstimateRelevanceJobs.Find(id);
-        if (job == null)
-        {
-            return false;   
-        }
-
-        _context.EstimateRelevanceJobs.Remove(job);
-        await _context.SaveChangesAsync();
-        return true;
-    }
-
-    public Task<IEnumerable<EstimateRelevanceJob>> ReadAllAsync()
-    {
-        throw new NotImplementedException("This method is not supported for EstimateRelevanceJobs");
-    }
-
-    public async Task<EstimateRelevanceJob?> ReadAsync(Ulid id)
-    {
-        return await _context.EstimateRelevanceJobs.FindAsync(id);
-    }
-
-    public async Task<IEnumerable<EstimateRelevanceJob>> ReadWithSearchSpecAsync(EstimateRelevanceJobSearchSpec searchSpec)
-    {
-        return await _context.EstimateRelevanceJobs
-            .Where(j => j.ProjectId == searchSpec.ProjectId)
+        return await GetDbSet()
+            .Where(a => a.ProjectId == searchSpec.ProjectId)
+            .Include(erj => erj.Snapshots.OrderBy(s => s.Id))
             .ToListAsync();
-    }
-
-    public async Task<EstimateRelevanceJob> UpdateAsync(EstimateRelevanceJob job)
-    {
-        _context.Entry(job).State = EntityState.Modified;
-        await _context.SaveChangesAsync();
-        return job;
     }
 }

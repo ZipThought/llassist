@@ -15,6 +15,7 @@ public enum TaskType
 {
     PREPROCESSING,
     EXECUTION,
+    FINALIZATION,
 }
 
 public class ResearchQuestionDTO

@@ -1,6 +1,6 @@
 ﻿namespace llassist.ApiService.Executors;
 
-public class QueueConfiguration
+public class QueueOptions
 {
     public const string SectionName = "Queue";
 
@@ -16,12 +16,4 @@ public class QueueConfiguration
     public bool EnableMessageExpirationTime { get; set; } = false;
     public int MessageExpirationMonitorTimeInSec { get; set; } = 20;
 
-}
-
-public class PositionOptions
-{
-    public const string Position = "Position";
-
-    public string Title { get; set; } = String.Empty;
-    public string Name { get; set; } = String.Empty;
 }

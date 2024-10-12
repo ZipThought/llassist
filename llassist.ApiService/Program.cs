@@ -37,11 +37,15 @@ internal class Program
         {
             options.UseNpgsql(dbConnectionString);
         });
-        builder.Services.AddScoped<ICRUDRepository<Ulid, Project, ProjectSearchSpec>, ProjectRepository>();
+        builder.Services.AddScoped<ICRUDRepository<Ulid, Project, BaseSearchSpec>, ProjectRepository>();
         builder.Services.AddScoped<ICRUDRepository<Ulid, Article, ArticleSearchSpec>, ArticleRepository>();
         builder.Services.AddScoped<ICRUDRepository<Ulid, EstimateRelevanceJob, EstimateRelevanceJobSearchSpec>, EstimateRelevanceJobRepository>();
 
+        // Register background task processing
         ConfigureQueue(builder.Services, builder.Configuration);
+        builder.Services.AddScoped<IArticleRelevanceService, ArticleRelevanceService>();
+        builder.Services.AddScoped<IEstimateRelevanceService, EstimateRelevanceService>();
+        builder.Services.AddSingleton<BackgroundTaskExecutor>();
 
         // Register the Services
         builder.Services.AddScoped<ProjectService>();
@@ -93,10 +97,10 @@ internal class Program
 
     private static void ConfigureQueue(IServiceCollection services, IConfiguration configuration)
     {
-        // Create the queue if it doesn't exist
-        var queueConfiguration = new QueueConfiguration();
-        configuration.GetSection(QueueConfiguration.SectionName).Bind(queueConfiguration);
-        services.AddSingleton(queueConfiguration);
+        // Register queue options
+        var queueConfiguration = new QueueOptions();
+        configuration.GetSection(QueueOptions.SectionName).Bind(queueConfiguration);
+        services.Configure<QueueOptions>(configuration.GetSection(QueueOptions.SectionName));
 
         var queueName = queueConfiguration.QueueName;
         var dbConnectionString = configuration.GetConnectionString("LlassistAppDatabase");
@@ -140,33 +144,14 @@ internal class Program
             var queueContainer = sp.GetRequiredService<QueueContainer<PostgreSqlMessageQueueInit>>();
             return queueContainer.CreateProducer<BackgroundTask>(queueConnection);
         });
-        services.AddScoped<EstimateRelevanceService>();
+        services.AddScoped<ProjectProcessingService>();
 
-        // Register queue consumer and executor
+        // Register queue consumer
         services.AddSingleton(sp =>
         {
-            var logger = sp.GetRequiredService<ILogger<Program>>();
-
             var queueContainer = sp.GetRequiredService<QueueContainer<PostgreSqlMessageQueueInit>>();
             var consumerQueue = queueContainer.CreateConsumer(queueConnection);
-            ConfigureConsumerQueue(consumerQueue, queueConfiguration, logger);
             return consumerQueue;
         });
-        services.AddSingleton<BackgroundTaskExecutor>();
-    }
-
-    private static void ConfigureConsumerQueue(IConsumerQueue consumerQueue, QueueConfiguration queueConfiguration, ILogger<Program> logger)
-    {
-        logger.LogInformation("Configuring ConsumerQueue with: {config}", JsonSerializer.Serialize(queueConfiguration));
-
-        consumerQueue.Configuration.HeartBeat.UpdateTime = queueConfiguration.HeartBeatUpdateTime;
-        consumerQueue.Configuration.Worker.WorkerCount = queueConfiguration.ConsumerWorkerCount;
-        consumerQueue.Configuration.HeartBeat.UpdateTime = queueConfiguration.HeartBeatUpdateTime;
-        consumerQueue.Configuration.HeartBeat.MonitorTime = TimeSpan.FromSeconds(queueConfiguration.HeartBeatMonitorTimeInSec);
-        consumerQueue.Configuration.HeartBeat.Time = TimeSpan.FromSeconds(queueConfiguration.HeartBeatTimeInSec);
-        consumerQueue.Configuration.MessageExpiration.Enabled = queueConfiguration.EnableMessageExpiration;
-        consumerQueue.Configuration.MessageExpiration.MonitorTime = TimeSpan.FromSeconds(queueConfiguration.MessageExpirationMonitorTimeInSec);
-        consumerQueue.Configuration.TransportConfiguration.RetryDelayBehavior.Add(typeof(InvalidDataException),
-            [TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(6), TimeSpan.FromSeconds(9)]); // TODO move hardcoded values to config
     }
 }
