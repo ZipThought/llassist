@@ -36,7 +36,7 @@
                     {
                         <tr>
                             <td>@setting.Key</td>
-                            <td>@(setting.Key.Contains("ApiKey", StringComparison.OrdinalIgnoreCase) ? "********" : setting.Value)</td>
+                            <td>@setting.Value</td>
                             <td>@setting.Description</td>
                             <td class="action-buttons">
                                 <button class="btn btn-secondary" @onclick="() => ShowEditModal(setting)">Edit</button>

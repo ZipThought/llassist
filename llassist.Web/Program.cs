@@ -1,4 +1,4 @@
-using llassist.Web;
+using llassist.Web.Clients;
 using llassist.Web.Components;
 
 internal partial class Program

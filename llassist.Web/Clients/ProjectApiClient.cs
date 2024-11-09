@@ -1,7 +1,7 @@
 ﻿using llassist.Common.ViewModels;
 using Microsoft.AspNetCore.Components.Forms;
 
-namespace llassist.Web;
+namespace llassist.Web.Clients;
 
 public class ProjectApiClient
 {
@@ -55,9 +55,16 @@ public class ProjectApiClient
         return await response.Content.ReadFromJsonAsync<ProjectViewModel>();
     }
 
-    public async Task<ProjectViewModel?> ProcessArticlesAsync(string projectId)
+    public async Task<ProcessResultViewModel> ProcessArticlesAsync(string projectId)
     {
-        return await _httpClient.GetFromJsonAsync<ProjectViewModel>($"api/project/process/{projectId}");
+        var response = await _httpClient.PostAsync($"api/project/process/{projectId}", null);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<ProcessResultViewModel>();
+    }
+
+    public async Task<ProcessResultViewModel> GetProcessProgressAsync(string projectId)
+    {
+        return await _httpClient.GetFromJsonAsync<ProcessResultViewModel>($"api/project/progress/{projectId}");
     }
 
     public async Task<byte[]> DownloadResultsAsync(string projectId)

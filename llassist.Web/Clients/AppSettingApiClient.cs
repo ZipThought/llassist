@@ -1,6 +1,6 @@
 using llassist.Common.ViewModels;
 
-namespace llassist.Web;
+namespace llassist.Web.Clients;
 
 public class AppSettingApiClient
 {

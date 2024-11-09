@@ -26,7 +26,7 @@ public class ProjectProcessingService
         _jobRepository = jobRepository;
     }
 
-    public async Task EnqueuePreprocessingTask(Ulid projectId)
+    public async Task<Ulid> EnqueuePreprocessingTask(Ulid projectId)
     {
         var project = await _projectRepository.ReadAsync(projectId);
         if (project == null)
@@ -46,6 +46,8 @@ public class ProjectProcessingService
 
         var createdJob = await createJobTask;
         _logger.LogInformation("Inserted job {jobId} for project {projectId}", createdJob.Id, createdJob.ProjectId);
+
+        return createdJob.Id;
     }
 
     public async Task<ProcessResultViewModel> GetJobProgress(Ulid projectId)

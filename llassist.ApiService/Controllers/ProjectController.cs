@@ -92,7 +92,7 @@ public class ProjectController : ControllerBase
         return Ok(project);
     }
 
-    [HttpGet("process/{projectId}")]
+    [HttpPost("process/{projectId}")]
     public async Task<IActionResult> ProcessArticles(string projectId)
     {
         var project = await _projectService.GetProjectAsync(Ulid.Parse(projectId));
@@ -101,20 +101,20 @@ public class ProjectController : ControllerBase
             return NotFound();
         }
 
-        // Check if there's ongoing processing for this project
-        // TODO: Implement locking mechanism to prevent multiple processing jobs
         var jobProgress = await _projectProcessingService.GetJobProgress(Ulid.Parse(projectId));
-
         if (!string.IsNullOrEmpty(jobProgress.JobId) && jobProgress.Progress < 100)
         {
-            _logger.LogInformation("Processing job {jobId} is already in progress for project {projectId}", jobProgress.JobId, projectId);
+            _logger.LogInformation("Processing job {jobId} is already in progress for project {projectId}", 
+                jobProgress.JobId, projectId);
+            return Ok(jobProgress);
         }
-        else
-        {
-            await _projectProcessingService.EnqueuePreprocessingTask(Ulid.Parse(projectId));
-        }
-
-        return Ok(project);
+        
+        var jobId = await _projectProcessingService.EnqueuePreprocessingTask(Ulid.Parse(projectId));
+        return Ok(new ProcessResultViewModel {
+            JobId = jobId.ToString(),
+            Progress = 0,
+            ProcessedArticles = []
+        });
     }
 
     [HttpGet("progress/{projectId}")]

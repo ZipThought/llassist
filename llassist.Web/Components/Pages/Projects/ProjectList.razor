@@ -69,6 +69,21 @@ else
     </div>
 }
 
+@if (processProgress != null && processProgress.Progress < 100)
+{
+    <div class="alert alert-info mb-3">
+        Processing: @processProgress.Progress%
+        <div class="progress">
+            <div class="progress-bar" role="progressbar" 
+                 style="width: @(processProgress.Progress)%" 
+                 aria-valuenow="@processProgress.Progress" 
+                 aria-valuemin="0" 
+                 aria-valuemax="100">
+            </div>
+        </div>
+    </div>
+}
+
 @if (articles != null && articles.Any())
 {
     <h4>Articles for @selectedProjectName</h4>
@@ -205,6 +220,8 @@ else if (!string.IsNullOrEmpty(selectedProjectId))
     private string? selectedProjectId;
     private string? selectedProjectName;
     private string inputFileKey = Guid.NewGuid().ToString();
+    private ProcessResultViewModel? processProgress;
+    private Timer? progressTimer;
 
     protected override async Task OnInitializedAsync()
     {
@@ -251,6 +268,28 @@ else if (!string.IsNullOrEmpty(selectedProjectId))
         {
             selectedProjectId = id;
             await LoadProjectDetails();
+            
+            // Add progress check after loading details
+            if (!string.IsNullOrEmpty(selectedProjectId))
+            {
+                processProgress = await ProjectApiClient.GetProcessProgressAsync(selectedProjectId);
+                if (processProgress?.Progress < 100)
+                {
+                    // Use existing timer logic that we know works
+                    progressTimer?.Dispose();
+                    progressTimer = new Timer(async _ =>
+                    {
+                        processProgress = await ProjectApiClient.GetProcessProgressAsync(id);
+                        if (processProgress.Progress >= 100)
+                        {
+                            progressTimer?.Dispose();
+                            progressTimer = null;
+                            await LoadProjectDetails(); // Reload when complete
+                        }
+                        await InvokeAsync(StateHasChanged);
+                    }, null, TimeSpan.Zero, TimeSpan.FromSeconds(5));
+                }
+            }
         }
     }
 
@@ -286,7 +325,20 @@ else if (!string.IsNullOrEmpty(selectedProjectId))
     {
         if (!string.IsNullOrEmpty(id))
         {
-            await ProjectApiClient.ProcessArticlesAsync(id);
+            processProgress = await ProjectApiClient.ProcessArticlesAsync(id);
+            
+            // Start monitoring progress
+            progressTimer?.Dispose();
+            progressTimer = new Timer(async _ =>
+            {
+                processProgress = await ProjectApiClient.GetProcessProgressAsync(id);
+                if (processProgress.Progress >= 100)
+                {
+                    progressTimer?.Dispose();
+                    progressTimer = null;
+                }
+                await InvokeAsync(StateHasChanged);
+            }, null, TimeSpan.Zero, TimeSpan.FromSeconds(5));
         }
     }
 
@@ -304,5 +356,10 @@ else if (!string.IsNullOrEmpty(selectedProjectId))
                 await JSRuntime.InvokeVoidAsync("downloadFileFromStream", fileName, Convert.ToBase64String(fileBytes));
             }
         }
+    }
+
+    public void Dispose()
+    {
+        progressTimer?.Dispose();
     }
 }
