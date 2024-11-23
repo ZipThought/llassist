@@ -45,8 +45,6 @@
                                 <div class="action-buttons">
                                     <button class="btn btn-secondary" @onclick:stopPropagation="true" 
                                             @onclick="() => EditCatalog(catalog.Id)">Edit</button>
-                                    <button class="btn btn-secondary" @onclick:stopPropagation="true"
-                                            @onclick="() => ManageCategories(catalog.Id)">Categories</button>
                                     <button class="btn btn-danger" @onclick:stopPropagation="true"
                                             @onclick="() => DeleteCatalog(catalog.Id)">Delete</button>
                                 </div>
@@ -64,83 +62,96 @@
     <div class="content-card mt-4">
         <ul class="nav nav-tabs mb-3">
             <li class="nav-item">
-                <a class="nav-link active" href="#">Entries</a>
+                <a class="nav-link @(activeTab == "entries" ? "active" : "")" 
+                   @onclick="@(() => SwitchTab("entries"))" 
+                   href="javascript:void(0)">
+                    Entries
+                </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="@($"/library/catalogs/{selectedCatalogId}/categories")">
+                <a class="nav-link @(activeTab == "categories" ? "active" : "")" 
+                   @onclick="@(() => SwitchTab("categories"))" 
+                   href="javascript:void(0)">
                     Categories
                 </a>
             </li>
         </ul>
 
-        <div class="mb-4">
-            <button class="btn btn-primary" @onclick="() => CreateEntry(selectedCatalogId)">
-                Add New Entry
-            </button>
-        </div>
-
-        @if (_entries?.Any() == true)
+        @if (activeTab == "entries")
         {
-            <div class="table-responsive">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Title</th>
-                            <th>Type</th>
-                            <th>Categories</th>
-                            <th>Source</th>
-                            <th>Published</th>
-                            <th>Labels</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var entry in _entries)
-                        {
-                            <tr>
-                                <td>
-                                    <div class="entry-title">@entry.Title</div>
-                                    <div class="entry-description">@entry.Description</div>
-                                </td>
-                                <td>@entry.EntryType</td>
-                                <td>
-                                    @if (entry.Categories.Any())
-                                    {
-                                        @foreach (var category in entry.Categories)
-                                        {
-                                            <span class="badge bg-secondary me-1">@category.Name</span>
-                                        }
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted">No categories</span>
-                                    }
-                                </td>
-                                <td>@entry.Source</td>
-                                <td>@(entry.PublishedAt?.ToString("d") ?? "-")</td>
-                                <td>
-                                    @foreach (var label in entry.Labels)
-                                    {
-                                        <span class="badge bg-primary me-1">@label</span>
-                                    }
-                                </td>
-                                <td>
-                                    <div class="action-buttons">
-                                        <button class="btn btn-secondary" 
-                                                @onclick="() => EditEntry(entry.Id)">Edit</button>
-                                        <button class="btn btn-danger"
-                                                @onclick="async () => await DeleteEntryWithConfirmation(entry.Id, entry.Title)">Delete</button>
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+            <div class="mb-4">
+                <button class="btn btn-primary" @onclick="() => CreateEntry(selectedCatalogId)">
+                    Add New Entry
+                </button>
             </div>
+
+            @if (_entries?.Any() == true)
+            {
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Type</th>
+                                <th>Categories</th>
+                                <th>Source</th>
+                                <th>Published</th>
+                                <th>Labels</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var entry in _entries)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="entry-title">@entry.Title</div>
+                                        <div class="entry-description">@entry.Description</div>
+                                    </td>
+                                    <td>@entry.EntryType</td>
+                                    <td>
+                                        @if (entry.Categories.Any())
+                                        {
+                                            @foreach (var category in entry.Categories)
+                                            {
+                                                <span class="badge bg-secondary me-1">@category.Name</span>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">No categories</span>
+                                        }
+                                    </td>
+                                    <td>@entry.Source</td>
+                                    <td>@(entry.PublishedAt?.ToString("d") ?? "-")</td>
+                                    <td>
+                                        @foreach (var label in entry.Labels)
+                                        {
+                                            <span class="badge bg-primary me-1">@label</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn btn-secondary" 
+                                                    @onclick="() => EditEntry(entry.Id)">Edit</button>
+                                            <button class="btn btn-danger"
+                                                    @onclick="async () => await DeleteEntryWithConfirmation(entry.Id, entry.Title)">Delete</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <p>No entries found in this catalog.</p>
+            }
         }
-        else
+        else if (activeTab == "categories")
         {
-            <p>No entries found in this catalog.</p>
+            <CategoryManager CatalogId="@selectedCatalogId" />
         }
     </div>
 }
@@ -150,6 +161,7 @@
     private IEnumerable<EntryViewModel>? _entries;
     private string? selectedCatalogId;
     private string? selectedCatalogName;
+    private string activeTab = "entries";
 
     protected override async Task OnInitializedAsync()
     {
@@ -296,9 +308,10 @@
         }
     }
 
-    private void ManageCategories(string catalogId)
+    private void SwitchTab(string tab)
     {
-        Navigation.NavigateTo($"/library/catalogs/{catalogId}/categories");
+        activeTab = tab;
+        StateHasChanged();
     }
 }
 

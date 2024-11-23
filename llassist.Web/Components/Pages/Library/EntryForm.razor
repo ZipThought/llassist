@@ -22,6 +22,9 @@
         <div class="mb-4">
             <label for="description" class="form-label">Description</label>
             <InputTextArea id="description" class="form-control" rows="3" @bind-Value="entry.Description" />
+            <div class="form-text">
+                Provide a concise description of the entry's content and significance.
+            </div>
         </div>
 
         <div class="row mb-4">
@@ -34,6 +37,12 @@
                     <option value="media">Media</option>
                     <option value="correspondence">Correspondence</option>
                 </InputSelect>
+                <div class="form-text">
+                    Academic: Research papers, books, articles
+                    Web: Online resources, websites, blog posts
+                    Media: Videos, podcasts, images
+                    Correspondence: Letters, emails, personal communications
+                </div>
             </div>
             <div class="col-md-6">
                 <label for="source" class="form-label">Source</label>
@@ -44,16 +53,25 @@
         <div class="mb-4">
             <label for="citation" class="form-label">Citation</label>
             <InputTextArea id="citation" class="form-control" rows="2" @bind-Value="entry.Citation" />
+            <div class="form-text">
+                Enter the full bibliographic citation in your preferred format (e.g., APA, MLA, Chicago).
+            </div>
         </div>
 
         <div class="row mb-4">
             <div class="col-md-6">
                 <label for="identifier" class="form-label">Identifier (DOI/URL/ISBN)</label>
                 <InputText id="identifier" class="form-control" @bind-Value="entry.Identifier" />
+                <div class="form-text">
+                    Enter a unique identifier like DOI, URL, or ISBN if available.
+                </div>
             </div>
             <div class="col-md-6">
                 <label for="publishedAt" class="form-label">Published Date</label>
                 <InputDate id="publishedAt" class="form-control" @bind-Value="entry.PublishedAt" />
+                <div class="form-text">
+                    The original publication date of this work.
+                </div>
             </div>
         </div>
 
