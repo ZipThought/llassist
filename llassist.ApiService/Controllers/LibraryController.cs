@@ -129,10 +129,26 @@ public class LibraryController : ControllerBase
     }
 
     [HttpGet("catalogs/{catalogId}/categories")]
-    public async Task<ActionResult<CategoryTreeViewModel>> GetCategoryTree(string catalogId, [FromQuery] string schemaType)
+    public async Task<ActionResult<CategoryTreeViewModel>> GetCategoryTree(string catalogId, [FromQuery] string? schemaType)
     {
-        var tree = await _libraryService.GetCategoryTreeAsync(Ulid.Parse(catalogId), schemaType);
-        return Ok(tree);
+        try
+        {
+            if (string.IsNullOrEmpty(catalogId))
+            {
+                return BadRequest("Catalog ID is required");
+            }
+
+            var tree = await _libraryService.GetCategoryTreeAsync(
+                Ulid.Parse(catalogId), 
+                schemaType ?? "subject" // default schema type if none provided
+            );
+            return Ok(tree);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting category tree for catalog {CatalogId}", catalogId);
+            return StatusCode(500, "An error occurred while getting the category tree");
+        }
     }
 
     [HttpPost("entries/{entryId}/categories/{categoryId}")]
@@ -229,6 +245,82 @@ public class LibraryController : ControllerBase
             return NotFound();
         }
         return NoContent();
+    }
+
+    [HttpGet("categories/{id}")]
+    public async Task<ActionResult<CategoryViewModel>> GetCategory(string id)
+    {
+        try
+        {
+            var category = await _libraryService.GetCategoryAsync(Ulid.Parse(id));
+            if (category == null)
+            {
+                return NotFound();
+            }
+            return Ok(category);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting category");
+            return StatusCode(500, "An error occurred while getting the category");
+        }
+    }
+
+    [HttpGet("categories/{categoryId}/entries")]
+    public async Task<ActionResult<IEnumerable<EntryViewModel>>> GetEntriesByCategory(string categoryId)
+    {
+        try
+        {
+            var entries = await _libraryService.GetEntriesByCategoryAsync(Ulid.Parse(categoryId));
+            return Ok(entries);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting entries by category");
+            return StatusCode(500, "An error occurred while getting entries");
+        }
+    }
+
+    [HttpDelete("categories/{id}")]
+    public async Task<IActionResult> DeleteCategory(string id)
+    {
+        try
+        {
+            var result = await _libraryService.DeleteCategoryAsync(Ulid.Parse(id));
+            if (!result)
+            {
+                return NotFound();
+            }
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting category");
+            return StatusCode(500, "An error occurred while deleting the category");
+        }
+    }
+
+    [HttpPut("categories/{id}")]
+    public async Task<ActionResult<CategoryViewModel>> UpdateCategory(string id, [FromBody] CategoryViewModel category)
+    {
+        try
+        {
+            var updated = await _libraryService.UpdateCategoryAsync(Ulid.Parse(id), category);
+            if (updated == null)
+            {
+                return NotFound();
+            }
+            return Ok(updated);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating category");
+            return StatusCode(500, "An error occurred while updating the category");
+        }
     }
 
     // Additional request models

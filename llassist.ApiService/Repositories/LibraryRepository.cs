@@ -72,6 +72,7 @@ public class CatalogRepository : CRUDBaseRepository<Ulid, Catalog, BaseSearchSpe
     public override async Task<Catalog?> ReadAsync(Ulid id)
     {
         return await GetDbSet()
+            .Include(c => c.Categories)
             .Include(c => c.Entries)
                 .ThenInclude(e => e.Labels)
                     .ThenInclude(el => el.Label)

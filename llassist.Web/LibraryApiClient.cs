@@ -83,4 +83,71 @@ public class LibraryApiClient
             throw;
         }
     }
+
+    public async Task<CategoryTreeViewModel> GetCategoryTreeAsync(string catalogId, string schemaType)
+    {
+        try
+        {
+            var response = await _httpClient.GetFromJsonAsync<CategoryTreeViewModel>(
+                $"api/library/catalogs/{catalogId}/categories?schemaType={Uri.EscapeDataString(schemaType)}");
+            return response ?? new CategoryTreeViewModel { SchemaType = schemaType };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error getting category tree: {ex.Message}");
+            throw;
+        }
+    }
+
+    public async Task<CategoryViewModel> CreateCategoryAsync(string catalogId, CategoryViewModel category)
+    {
+        var response = await _httpClient.PostAsJsonAsync(
+            $"api/library/catalogs/{catalogId}/categories", category);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<CategoryViewModel>()
+            ?? throw new InvalidOperationException("Failed to create category");
+    }
+
+    public async Task<CategoryViewModel> UpdateCategoryAsync(string id, CategoryViewModel category)
+    {
+        var response = await _httpClient.PutAsJsonAsync(
+            $"api/library/categories/{id}", category);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<CategoryViewModel>()
+            ?? throw new InvalidOperationException("Failed to update category");
+    }
+
+    public async Task DeleteCategoryAsync(string id)
+    {
+        var response = await _httpClient.DeleteAsync($"api/library/categories/{id}");
+        response.EnsureSuccessStatusCode();
+    }
+
+    public async Task<CategoryViewModel?> GetCategoryAsync(string id)
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<CategoryViewModel>($"api/library/categories/{id}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error getting category: {ex.Message}");
+            throw;
+        }
+    }
+
+    public async Task<IEnumerable<EntryViewModel>> GetEntriesByCategoryAsync(string categoryId)
+    {
+        try
+        {
+            var entries = await _httpClient.GetFromJsonAsync<IEnumerable<EntryViewModel>>(
+                $"api/library/categories/{categoryId}/entries");
+            return entries ?? Enumerable.Empty<EntryViewModel>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error getting entries by category: {ex.Message}");
+            throw;
+        }
+    }
 } 

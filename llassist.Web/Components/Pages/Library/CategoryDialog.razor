@@ -1,0 +1,108 @@
+@rendermode InteractiveServer
+
+<div class="modal @(isVisible ? "show d-block" : "d-none")" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">@(category?.Id == null ? "Create" : "Edit") Category</h5>
+                <button type="button" class="btn-close" @onclick="Hide"></button>
+            </div>
+            
+            <EditForm Model="category" OnValidSubmit="HandleSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+                
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger">
+                        @errorMessage
+                    </div>
+                }
+
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <InputText @bind-Value="category.Name" class="form-control" />
+                        <ValidationMessage For="@(() => category.Name)" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <InputTextArea @bind-Value="category.Description" class="form-control" />
+                        <ValidationMessage For="@(() => category.Description)" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Schema Type</label>
+                        <InputText @bind-Value="category.SchemaType" class="form-control" readonly />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Parent Category</label>
+                        <InputSelect @bind-Value="category.ParentId" class="form-select">
+                            <option value="">No Parent (Root Category)</option>
+                            @foreach (var parent in AvailableParents.Where(p => p.Id != category.Id))
+                            {
+                                <option value="@parent.Id">@parent.Path</option>
+                            }
+                        </InputSelect>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="Hide">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+@if (isVisible)
+{
+    <div class="modal-backdrop show"></div>
+}
+
+@code {
+    [Parameter] public EventCallback<CategoryViewModel> OnSave { get; set; }
+    [Parameter] public List<CategoryViewModel> AvailableParents { get; set; } = [];
+
+    private bool isVisible;
+    private CategoryViewModel category = new();
+    private string? errorMessage;
+
+    public void Show(CategoryViewModel? existingCategory, string schemaType)
+    {
+        category = existingCategory ?? new CategoryViewModel { SchemaType = schemaType };
+        isVisible = true;
+        StateHasChanged();
+    }
+
+    public void Hide()
+    {
+        isVisible = false;
+        StateHasChanged();
+    }
+
+    private async Task HandleSubmit()
+    {
+        try
+        {
+            errorMessage = null;
+            if (string.IsNullOrEmpty(category.ParentId))
+            {
+                category.ParentId = null;
+            }
+            await OnSave.InvokeAsync(category);
+            Hide();
+        }
+        catch (InvalidOperationException ex)
+        {
+            errorMessage = ex.Message;
+        }
+        catch (Exception)
+        {
+            errorMessage = "An unexpected error occurred while saving the category.";
+        }
+    }
+} 

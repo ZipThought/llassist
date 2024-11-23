@@ -24,6 +24,7 @@ public class EntryViewModel
     public DateTimeOffset? PublishedAt { get; set; }
     public IList<ResourceViewModel> Resources { get; set; } = [];
     public IList<string> Labels { get; set; } = [];
+    public IList<CategoryViewModel> Categories { get; set; } = [];
     public IDictionary<string, object> Metadata { get; set; } = new Dictionary<string, object>();
 }
 

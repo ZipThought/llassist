@@ -32,6 +32,13 @@ public interface ILibraryService
     Task<LabelViewModel> CreateLabelAsync(Ulid catalogId, LabelViewModel label);
     Task<bool> AssignLabelToEntryAsync(Ulid entryId, Ulid labelId);
     Task<bool> RemoveLabelFromEntryAsync(Ulid entryId, Ulid labelId);
+
+    // Category operations
+    Task<CategoryViewModel?> GetCategoryAsync(Ulid id);
+    Task<IEnumerable<EntryViewModel>> GetEntriesByCategoryAsync(Ulid categoryId);
+
+    Task<bool> DeleteCategoryAsync(Ulid id);
+    Task<CategoryViewModel?> UpdateCategoryAsync(Ulid id, CategoryViewModel categoryVm);
 }
 
 public class LibraryService : ILibraryService
@@ -155,14 +162,24 @@ public class LibraryService : ILibraryService
 
     public async Task<CategoryViewModel> CreateCategoryAsync(Ulid catalogId, CategoryViewModel categoryVm)
     {
+        if (string.IsNullOrWhiteSpace(categoryVm.Name))
+        {
+            throw new ArgumentException("Category name is required");
+        }
+
+        if (string.IsNullOrWhiteSpace(categoryVm.SchemaType))
+        {
+            throw new ArgumentException("Schema type is required");
+        }
+
         var parent = categoryVm.ParentId != null ? 
             await _categoryRepository.ReadAsync(Ulid.Parse(categoryVm.ParentId)) : null;
 
         var category = new Category
         {
             CatalogId = catalogId,
-            Name = categoryVm.Name,
-            Description = categoryVm.Description,
+            Name = categoryVm.Name.Trim(),
+            Description = categoryVm.Description?.Trim() ?? string.Empty,
             SchemaType = categoryVm.SchemaType,
             ParentId = parent?.Id,
             Depth = (parent?.Depth ?? -1) + 1
@@ -178,19 +195,63 @@ public class LibraryService : ILibraryService
 
     public async Task<CategoryTreeViewModel> GetCategoryTreeAsync(Ulid catalogId, string schemaType)
     {
-        var catalog = await _catalogRepository.ReadAsync(catalogId);
-        if (catalog == null) 
-            return new CategoryTreeViewModel { SchemaType = schemaType };
+        _logger.LogInformation("Getting category tree for catalog {CatalogId} and schema {SchemaType}", 
+            catalogId, schemaType);
 
-        var rootCategories = catalog.Categories
-            .Where(c => c.SchemaType == schemaType && c.ParentId == null)
-            .Select(MapToCategoryViewModel)
+        var catalog = await _catalogRepository.ReadAsync(catalogId);
+        if (catalog == null)
+        {
+            _logger.LogWarning("Catalog {CatalogId} not found", catalogId);
+            return new CategoryTreeViewModel 
+            { 
+                SchemaType = schemaType,
+                RootCategories = new List<CategoryViewModel>()
+            };
+        }
+
+        _logger.LogInformation("Found {Count} categories for catalog", catalog.Categories.Count);
+
+        // Get categories for this schema type
+        var schemaCategories = catalog.Categories
+            .Where(c => c.SchemaType == schemaType)
+            .ToList();
+
+        _logger.LogInformation("Found {Count} categories for schema type {SchemaType}", 
+            schemaCategories.Count, schemaType);
+
+        // Build tree structure
+        var rootCategories = schemaCategories
+            .Where(c => c.ParentId == null)
+            .OrderBy(c => c.Name)
+            .Select(c => MapToCategoryViewModel(c, schemaCategories))
             .ToList();
 
         return new CategoryTreeViewModel
         {
             SchemaType = schemaType,
             RootCategories = rootCategories
+        };
+    }
+
+    private CategoryViewModel MapToCategoryViewModel(Category category, List<Category> allCategories)
+    {
+        var children = allCategories
+            .Where(c => c.ParentId == category.Id)
+            .OrderBy(c => c.Name)
+            .Select(c => MapToCategoryViewModel(c, allCategories))
+            .ToList();
+
+        return new CategoryViewModel
+        {
+            Id = category.Id.ToString(),
+            Name = category.Name,
+            Description = category.Description,
+            Path = category.Path,
+            Depth = category.Depth,
+            SchemaType = category.SchemaType,
+            ParentId = category.ParentId?.ToString(),
+            Children = children,
+            EntryIds = category.Entries.Select(ce => ce.EntryId.ToString()).ToList()
         };
     }
 
@@ -274,6 +335,125 @@ public class LibraryService : ILibraryService
         return true;
     }
 
+    public async Task<CategoryViewModel?> GetCategoryAsync(Ulid id)
+    {
+        var category = await _categoryRepository.ReadAsync(id);
+        return category != null ? MapToCategoryViewModel(category) : null;
+    }
+
+    public async Task<IEnumerable<EntryViewModel>> GetEntriesByCategoryAsync(Ulid categoryId)
+    {
+        var category = await _categoryRepository.ReadAsync(categoryId);
+        if (category == null) return Enumerable.Empty<EntryViewModel>();
+        
+        return category.Entries
+            .Select(ce => ce.Entry)
+            .Select(MapToEntryViewModel);
+    }
+
+    public async Task<bool> DeleteCategoryAsync(Ulid id)
+    {
+        var category = await _categoryRepository.ReadAsync(id);
+        if (category == null)
+        {
+            return false;
+        }
+
+        // First delete all child categories
+        var children = await GetAllChildCategories(id);
+        foreach (var child in children)
+        {
+            await _categoryRepository.DeleteAsync(child.Id);
+        }
+
+        return await _categoryRepository.DeleteAsync(id);
+    }
+
+    public async Task<CategoryViewModel?> UpdateCategoryAsync(Ulid id, CategoryViewModel categoryVm)
+    {
+        var category = await _categoryRepository.ReadAsync(id);
+        if (category == null)
+        {
+            return null;
+        }
+
+        // Prevent self-reference
+        if (!string.IsNullOrEmpty(categoryVm.ParentId) && categoryVm.ParentId == category.Id.ToString())
+        {
+            throw new InvalidOperationException("A category cannot be its own parent");
+        }
+
+        // Check for circular reference only if ParentId is provided
+        if (!string.IsNullOrEmpty(categoryVm.ParentId))
+        {
+            var parentId = Ulid.Parse(categoryVm.ParentId);
+            if (await WouldCreateCircularReference(id, parentId))
+            {
+                throw new InvalidOperationException("This operation would create a circular reference");
+            }
+        }
+
+        category.Name = categoryVm.Name.Trim();
+        category.Description = categoryVm.Description?.Trim() ?? string.Empty;
+        
+        // Handle moving to root (null ParentId) or to a new parent
+        if (string.IsNullOrEmpty(categoryVm.ParentId))
+        {
+            // Moving to root
+            category.ParentId = null;
+            category.Depth = 0;
+            category.Path = $"/{category.Name}";
+        }
+        else if (categoryVm.ParentId != category.ParentId?.ToString())
+        {
+            // Moving to new parent
+            var parent = await _categoryRepository.ReadAsync(Ulid.Parse(categoryVm.ParentId));
+            if (parent != null)
+            {
+                category.ParentId = parent.Id;
+                category.Depth = parent.Depth + 1;
+                category.Path = $"{parent.Path}/{category.Name}";
+            }
+        }
+
+        var updated = await _categoryRepository.UpdateAsync(category);
+        return MapToCategoryViewModel(updated);
+    }
+
+    private async Task<bool> WouldCreateCircularReference(Ulid categoryId, Ulid newParentId)
+    {
+        var current = await _categoryRepository.ReadAsync(newParentId);
+        var visited = new HashSet<Ulid>();
+
+        while (current != null && current.ParentId.HasValue)
+        {
+            // If we've seen this category before or if it's the category we're trying to move, it's circular
+            if (!visited.Add(current.Id) || current.Id == categoryId)
+            {
+                return true;
+            }
+            current = await _categoryRepository.ReadAsync(current.ParentId.Value);
+        }
+
+        return false;
+    }
+
+    private async Task<IEnumerable<Category>> GetAllChildCategories(Ulid parentId)
+    {
+        var children = new List<Category>();
+        var directChildren = (await _categoryRepository.ReadAllAsync())
+            .Where(c => c.ParentId == parentId)
+            .ToList();
+
+        foreach (var child in directChildren)
+        {
+            children.Add(child);
+            children.AddRange(await GetAllChildCategories(child.Id));
+        }
+
+        return children;
+    }
+
     private static CatalogViewModel MapToCatalogViewModel(Catalog catalog)
     {
         return new CatalogViewModel
@@ -302,6 +482,9 @@ public class LibraryService : ILibraryService
             PublishedAt = entry.PublishedAt,
             Resources = entry.Resources.Select(MapToResourceViewModel).ToList(),
             Labels = entry.Labels.Select(l => l.Label.Name).ToList(),
+            Categories = entry.Categories
+                .Select(ce => MapToCategoryViewModel(ce.Category))
+                .ToList(),
             Metadata = JsonSerializer.Deserialize<Dictionary<string, object>>(entry.Metadata) 
                 ?? new Dictionary<string, object>()
         };
@@ -330,8 +513,12 @@ public class LibraryService : ILibraryService
             Depth = category.Depth,
             SchemaType = category.SchemaType,
             ParentId = category.ParentId?.ToString(),
-            Children = category.Children.Select(MapToCategoryViewModel).ToList(),
-            EntryIds = category.Entries.Select(ce => ce.EntryId.ToString()).ToList()
+            Children = category.Children
+                .Select(MapToCategoryViewModel)
+                .ToList(),
+            EntryIds = category.Entries
+                .Select(ce => ce.EntryId.ToString())
+                .ToList()
         };
     }
 

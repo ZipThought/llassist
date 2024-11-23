@@ -45,6 +45,8 @@
                                 <div class="action-buttons">
                                     <button class="btn btn-secondary" @onclick:stopPropagation="true" 
                                             @onclick="() => EditCatalog(catalog.Id)">Edit</button>
+                                    <button class="btn btn-secondary" @onclick:stopPropagation="true"
+                                            @onclick="() => ManageCategories(catalog.Id)">Categories</button>
                                     <button class="btn btn-danger" @onclick:stopPropagation="true"
                                             @onclick="() => DeleteCatalog(catalog.Id)">Delete</button>
                                 </div>
@@ -60,8 +62,17 @@
 @if (!string.IsNullOrEmpty(selectedCatalogId))
 {
     <div class="content-card mt-4">
-        <h3>Entries in @selectedCatalogName</h3>
-        
+        <ul class="nav nav-tabs mb-3">
+            <li class="nav-item">
+                <a class="nav-link active" href="#">Entries</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="@($"/library/catalogs/{selectedCatalogId}/categories")">
+                    Categories
+                </a>
+            </li>
+        </ul>
+
         <div class="mb-4">
             <button class="btn btn-primary" @onclick="() => CreateEntry(selectedCatalogId)">
                 Add New Entry
@@ -76,6 +87,7 @@
                         <tr>
                             <th>Title</th>
                             <th>Type</th>
+                            <th>Categories</th>
                             <th>Source</th>
                             <th>Published</th>
                             <th>Labels</th>
@@ -91,6 +103,19 @@
                                     <div class="entry-description">@entry.Description</div>
                                 </td>
                                 <td>@entry.EntryType</td>
+                                <td>
+                                    @if (entry.Categories.Any())
+                                    {
+                                        @foreach (var category in entry.Categories)
+                                        {
+                                            <span class="badge bg-secondary me-1">@category.Name</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">No categories</span>
+                                    }
+                                </td>
                                 <td>@entry.Source</td>
                                 <td>@(entry.PublishedAt?.ToString("d") ?? "-")</td>
                                 <td>
@@ -247,6 +272,11 @@
             await DeleteEntry(id);
         }
     }
+
+    private void ManageCategories(string catalogId)
+    {
+        Navigation.NavigateTo($"/library/catalogs/{catalogId}/categories");
+    }
 }
 
 <style>
@@ -264,5 +294,25 @@
 .badge {
     font-size: 0.75rem;
     font-weight: 500;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.nav-tabs .nav-link {
+    color: var(--primary-blue);
+}
+
+.nav-tabs .nav-link.active {
+    color: var(--bs-nav-tabs-link-active-color);
+    background-color: var(--bs-nav-tabs-link-active-bg);
+    border-color: var(--bs-nav-tabs-link-active-border-color);
+}
+
+.badge {
+    font-size: 0.75rem;
+    font-weight: normal;
 }
 </style> 
