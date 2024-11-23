@@ -182,13 +182,27 @@
     {
         try
         {
-            await LibraryClient.DeleteCatalogAsync(id);
-            await LoadCatalogs();
-            if (selectedCatalogId == id)
+            var catalog = _catalogs?.FirstOrDefault(c => c.Id == id);
+            if (catalog == null) return;
+
+            var message = $"Are you sure you want to delete '{catalog.Name}'?\n\n" +
+                         "This will permanently delete:\n" +
+                         "- All categories in this catalog\n" +
+                         "- All entries in this catalog\n" +
+                         "- All associated resources";
+
+            var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", message);
+
+            if (confirmed)
             {
-                selectedCatalogId = null;
-                selectedCatalogName = null;
-                _entries = null;
+                await LibraryClient.DeleteCatalogAsync(id);
+                await LoadCatalogs();
+                if (selectedCatalogId == id)
+                {
+                    selectedCatalogId = null;
+                    selectedCatalogName = null;
+                    _entries = null;
+                }
             }
         }
         catch (Exception ex)
@@ -247,15 +261,24 @@
     {
         try
         {
-            Logger.LogInformation("Deleting entry: {Id}", id);
-            var success = await LibraryClient.DeleteEntryAsync(id);
-            if (success)
+            var entry = _entries?.FirstOrDefault(e => e.Id == id);
+            if (entry == null) return;
+
+            var message = $"Are you sure you want to delete '{entry.Title}'?\n\n" +
+                         "This will permanently delete:\n" +
+                         "- The entry and its metadata\n" +
+                         "- All associated resources\n" +
+                         "- All category assignments";
+
+            var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", message);
+
+            if (confirmed)
             {
-                await LoadCatalogDetails();
-            }
-            else
-            {
-                Logger.LogWarning("Failed to delete entry: {Id}", id);
+                var success = await LibraryClient.DeleteEntryAsync(id);
+                if (success)
+                {
+                    await LoadCatalogDetails();
+                }
             }
         }
         catch (Exception ex)
