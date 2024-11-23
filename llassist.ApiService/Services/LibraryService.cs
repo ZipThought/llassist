@@ -19,7 +19,7 @@ public interface ILibraryService
     Task<EntryViewModel> CreateEntryAsync(Ulid catalogId, EntryViewModel entry);
     Task<EntryViewModel?> GetEntryAsync(Ulid id);
     Task<IEnumerable<EntryViewModel>> GetEntriesByCatalogAsync(Ulid catalogId);
-    Task<EntryViewModel?> UpdateEntryAsync(Ulid id, EntryViewModel entry);
+    Task<EntryViewModel?> UpdateEntryAsync(Ulid id, CreateEditEntryViewModel entryVm);
     Task<bool> DeleteEntryAsync(Ulid id);
 
     // Category operations
@@ -130,19 +130,18 @@ public class LibraryService : ILibraryService
         return catalog?.Entries.Select(MapToEntryViewModel) ?? Enumerable.Empty<EntryViewModel>();
     }
 
-    public async Task<EntryViewModel?> UpdateEntryAsync(Ulid id, EntryViewModel entryVm)
+    public async Task<EntryViewModel?> UpdateEntryAsync(Ulid id, CreateEditEntryViewModel entryVm)
     {
         var entry = await _entryRepository.ReadAsync(id);
         if (entry == null) return null;
 
-        entry.EntryType = entryVm.EntryType;
         entry.Title = entryVm.Title;
         entry.Description = entryVm.Description;
-        entry.Citation = entryVm.Citation;
+        entry.EntryType = entryVm.EntryType;
         entry.Source = entryVm.Source;
+        entry.Citation = entryVm.Citation;
         entry.Identifier = entryVm.Identifier;
         entry.PublishedAt = entryVm.PublishedAt;
-        entry.Metadata = JsonSerializer.Serialize(entryVm.Metadata);
         entry.UpdatedAt = DateTimeOffset.UtcNow;
 
         var updated = await _entryRepository.UpdateAsync(entry);

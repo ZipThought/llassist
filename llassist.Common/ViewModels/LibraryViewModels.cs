@@ -1,4 +1,5 @@
 namespace llassist.Common.ViewModels;
+using System.ComponentModel.DataAnnotations;
 
 public class CatalogViewModel
 {
@@ -93,4 +94,43 @@ public class SearchResultViewModel
 {
     public EntryViewModel Entry { get; set; } = new EntryViewModel();
     public IList<CategoryPathViewModel> CategoryPaths { get; set; } = [];
+}
+
+public class CreateEditCatalogViewModel
+{
+    [Required]
+    [StringLength(200)]
+    public string Name { get; set; } = string.Empty;
+    
+    [StringLength(2000)]
+    public string Description { get; set; } = string.Empty;
+    
+    [Required]
+    [StringLength(100)]
+    public string Owner { get; set; } = string.Empty;
+}
+
+public class CreateEditEntryViewModel
+{
+    [Required]
+    [StringLength(500)]
+    public string Title { get; set; } = string.Empty;
+    
+    [StringLength(5000)]
+    public string Description { get; set; } = string.Empty;
+    
+    [Required]
+    [StringLength(50)]
+    public string EntryType { get; set; } = string.Empty;
+    
+    [StringLength(200)]
+    public string Source { get; set; } = string.Empty;
+    
+    [StringLength(2000)]
+    public string Citation { get; set; } = string.Empty;
+    
+    [StringLength(200)]
+    public string Identifier { get; set; } = string.Empty;
+    
+    public DateTimeOffset? PublishedAt { get; set; }
 } 

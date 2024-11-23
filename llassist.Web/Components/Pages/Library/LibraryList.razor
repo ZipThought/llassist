@@ -1,0 +1,268 @@
+@page "/library"
+@rendermode InteractiveServer
+@inject LibraryApiClient LibraryClient
+@inject NavigationManager Navigation
+@inject ILogger<LibraryList> Logger
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Library</PageTitle>
+
+<div class="content-card">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Library</h2>
+        <button class="btn btn-primary" @onclick="CreateCatalog">
+            Create New Catalog
+        </button>
+    </div>
+
+    @if (_catalogs == null)
+    {
+        <p>Loading...</p>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th>Owner</th>
+                        <th>Entries</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var catalog in _catalogs)
+                    {
+                        <tr @onclick="() => SelectCatalog(catalog.Id)" 
+                            class="@(catalog.Id == selectedCatalogId ? "table-active" : "") clickable-row">
+                            <td><strong>@catalog.Name</strong></td>
+                            <td>@catalog.Description</td>
+                            <td>@catalog.Owner</td>
+                            <td>@catalog.Entries.Count</td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button class="btn btn-secondary" @onclick:stopPropagation="true" 
+                                            @onclick="() => EditCatalog(catalog.Id)">Edit</button>
+                                    <button class="btn btn-danger" @onclick:stopPropagation="true"
+                                            @onclick="() => DeleteCatalog(catalog.Id)">Delete</button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@if (!string.IsNullOrEmpty(selectedCatalogId))
+{
+    <div class="content-card mt-4">
+        <h3>Entries in @selectedCatalogName</h3>
+        
+        <div class="mb-4">
+            <button class="btn btn-primary" @onclick="() => CreateEntry(selectedCatalogId)">
+                Add New Entry
+            </button>
+        </div>
+
+        @if (_entries?.Any() == true)
+        {
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Type</th>
+                            <th>Source</th>
+                            <th>Published</th>
+                            <th>Labels</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var entry in _entries)
+                        {
+                            <tr>
+                                <td>
+                                    <div class="entry-title">@entry.Title</div>
+                                    <div class="entry-description">@entry.Description</div>
+                                </td>
+                                <td>@entry.EntryType</td>
+                                <td>@entry.Source</td>
+                                <td>@(entry.PublishedAt?.ToString("d") ?? "-")</td>
+                                <td>
+                                    @foreach (var label in entry.Labels)
+                                    {
+                                        <span class="badge bg-primary me-1">@label</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <button class="btn btn-secondary" 
+                                                @onclick="() => EditEntry(entry.Id)">Edit</button>
+                                        <button class="btn btn-danger"
+                                                @onclick="async () => await DeleteEntryWithConfirmation(entry.Id, entry.Title)">Delete</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <p>No entries found in this catalog.</p>
+        }
+    </div>
+}
+
+@code {
+    private IEnumerable<CatalogViewModel>? _catalogs;
+    private IEnumerable<EntryViewModel>? _entries;
+    private string? selectedCatalogId;
+    private string? selectedCatalogName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCatalogs();
+    }
+
+    private async Task LoadCatalogs()
+    {
+        try
+        {
+            _catalogs = await LibraryClient.GetAllCatalogsAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading catalogs");
+        }
+    }
+
+    private void CreateCatalog()
+    {
+        Navigation.NavigateTo("/library/catalogs/new");
+    }
+
+    private void EditCatalog(string id)
+    {
+        Navigation.NavigateTo($"/library/catalogs/{id}/edit");
+    }
+
+    private async Task DeleteCatalog(string id)
+    {
+        try
+        {
+            await LibraryClient.DeleteCatalogAsync(id);
+            await LoadCatalogs();
+            if (selectedCatalogId == id)
+            {
+                selectedCatalogId = null;
+                selectedCatalogName = null;
+                _entries = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error deleting catalog");
+        }
+    }
+
+    private async Task SelectCatalog(string id)
+    {
+        if (selectedCatalogId == id)
+        {
+            selectedCatalogId = null;
+            selectedCatalogName = null;
+            _entries = null;
+        }
+        else
+        {
+            selectedCatalogId = id;
+            await LoadCatalogDetails();
+        }
+    }
+
+    private async Task LoadCatalogDetails()
+    {
+        if (!string.IsNullOrEmpty(selectedCatalogId))
+        {
+            try
+            {
+                var catalog = await LibraryClient.GetCatalogAsync(selectedCatalogId);
+                if (catalog != null)
+                {
+                    _entries = catalog.Entries;
+                    selectedCatalogName = catalog.Name;
+                    StateHasChanged();
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error loading catalog details");
+            }
+        }
+    }
+
+    private void CreateEntry(string catalogId)
+    {
+        Navigation.NavigateTo($"/library/catalogs/{catalogId}/entries/new");
+    }
+
+    private void EditEntry(string id)
+    {
+        Navigation.NavigateTo($"/library/entries/{id}/edit");
+    }
+
+    private async Task DeleteEntry(string id)
+    {
+        try
+        {
+            Logger.LogInformation("Deleting entry: {Id}", id);
+            var success = await LibraryClient.DeleteEntryAsync(id);
+            if (success)
+            {
+                await LoadCatalogDetails();
+            }
+            else
+            {
+                Logger.LogWarning("Failed to delete entry: {Id}", id);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error deleting entry");
+        }
+    }
+
+    private async Task DeleteEntryWithConfirmation(string id, string title)
+    {
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to delete '{title}'?");
+        if (confirmed)
+        {
+            await DeleteEntry(id);
+        }
+    }
+}
+
+<style>
+.entry-title {
+    font-weight: 500;
+    color: var(--primary-blue);
+}
+
+.entry-description {
+    font-size: 0.875rem;
+    color: #666;
+    margin-top: 0.25rem;
+}
+
+.badge {
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+</style> 

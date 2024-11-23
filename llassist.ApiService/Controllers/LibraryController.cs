@@ -201,6 +201,36 @@ public class LibraryController : ControllerBase
         return NoContent();
     }
 
+    [HttpPut("entries/{id}")]
+    public async Task<ActionResult<EntryViewModel>> UpdateEntry(string id, [FromBody] CreateEditEntryViewModel entry)
+    {
+        try
+        {
+            var updated = await _libraryService.UpdateEntryAsync(Ulid.Parse(id), entry);
+            if (updated == null)
+            {
+                return NotFound();
+            }
+            return Ok(updated);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating entry");
+            return StatusCode(500, "An error occurred while updating the entry");
+        }
+    }
+
+    [HttpDelete("entries/{id}")]
+    public async Task<IActionResult> DeleteEntry(string id)
+    {
+        var result = await _libraryService.DeleteEntryAsync(Ulid.Parse(id));
+        if (!result)
+        {
+            return NotFound();
+        }
+        return NoContent();
+    }
+
     // Additional request models
     public class CreateCatalogRequest
     {

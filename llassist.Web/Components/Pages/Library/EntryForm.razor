@@ -1,0 +1,134 @@
+@page "/library/catalogs/{catalogId}/entries/new"
+@page "/library/entries/{id}/edit"
+@rendermode InteractiveServer
+@inject LibraryApiClient LibraryClient
+@inject NavigationManager Navigation
+@inject ILogger<EntryForm> Logger
+
+<PageTitle>@(isNew ? "Create Entry" : "Edit Entry")</PageTitle>
+
+<div class="content-card">
+    <h2>@(isNew ? "Create New Entry" : "Edit Entry")</h2>
+
+    <EditForm Model="@entry" OnValidSubmit="HandleValidSubmit" FormName="entryForm">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="text-danger" />
+
+        <div class="mb-4">
+            <label for="title" class="form-label">Title *</label>
+            <InputText id="title" class="form-control" @bind-Value="entry.Title" />
+        </div>
+
+        <div class="mb-4">
+            <label for="description" class="form-label">Description</label>
+            <InputTextArea id="description" class="form-control" rows="3" @bind-Value="entry.Description" />
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <label for="entryType" class="form-label">Type *</label>
+                <InputSelect id="entryType" class="form-select" @bind-Value="entry.EntryType">
+                    <option value="">Select type...</option>
+                    <option value="academic">Academic</option>
+                    <option value="web">Web</option>
+                    <option value="media">Media</option>
+                    <option value="correspondence">Correspondence</option>
+                </InputSelect>
+            </div>
+            <div class="col-md-6">
+                <label for="source" class="form-label">Source</label>
+                <InputText id="source" class="form-control" @bind-Value="entry.Source" />
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <label for="citation" class="form-label">Citation</label>
+            <InputTextArea id="citation" class="form-control" rows="2" @bind-Value="entry.Citation" />
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <label for="identifier" class="form-label">Identifier (DOI/URL/ISBN)</label>
+                <InputText id="identifier" class="form-control" @bind-Value="entry.Identifier" />
+            </div>
+            <div class="col-md-6">
+                <label for="publishedAt" class="form-label">Published Date</label>
+                <InputDate id="publishedAt" class="form-control" @bind-Value="entry.PublishedAt" />
+            </div>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Save</button>
+            <button type="button" class="btn btn-secondary" @onclick="Cancel">Cancel</button>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    [Parameter] public string? Id { get; set; }
+    [Parameter] public string? CatalogId { get; set; }
+    private bool isNew => string.IsNullOrEmpty(Id);
+
+    private CreateEditEntryViewModel entry = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!isNew)
+        {
+            try
+            {
+                var existing = await LibraryClient.GetEntryAsync(Id!);
+                if (existing != null)
+                {
+                    entry = new CreateEditEntryViewModel
+                    {
+                        Title = existing.Title,
+                        Description = existing.Description,
+                        EntryType = existing.EntryType,
+                        Source = existing.Source,
+                        Citation = existing.Citation,
+                        Identifier = existing.Identifier,
+                        PublishedAt = existing.PublishedAt
+                    };
+                }
+                else
+                {
+                    Logger.LogWarning("Entry not found: {Id}", Id);
+                    Navigation.NavigateTo("/library");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error loading entry");
+                Navigation.NavigateTo("/library");
+            }
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            if (isNew && !string.IsNullOrEmpty(CatalogId))
+            {
+                Logger.LogInformation("Creating new entry in catalog: {CatalogId}", CatalogId);
+                await LibraryClient.CreateEntryAsync(CatalogId, entry);
+            }
+            else if (!isNew && !string.IsNullOrEmpty(Id))
+            {
+                Logger.LogInformation("Updating entry: {Id}", Id);
+                await LibraryClient.UpdateEntryAsync(Id, entry);
+            }
+            Navigation.NavigateTo("/library");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error saving entry: {Message}", ex.Message);
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/library");
+    }
+} 
