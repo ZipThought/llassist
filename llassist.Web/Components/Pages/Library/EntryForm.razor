@@ -45,33 +45,33 @@
                 </div>
             </div>
             <div class="col-md-6">
-                <label for="source" class="form-label">Source</label>
-                <InputText id="source" class="form-control" @bind-Value="entry.Source" />
-            </div>
-        </div>
-
-        <div class="mb-4">
-            <label for="citation" class="form-label">Citation</label>
-            <InputTextArea id="citation" class="form-control" rows="2" @bind-Value="entry.Citation" />
-            <div class="form-text">
-                Enter the full bibliographic citation in your preferred format (e.g., APA, MLA, Chicago).
-            </div>
-        </div>
-
-        <div class="row mb-4">
-            <div class="col-md-6">
-                <label for="identifier" class="form-label">Identifier (DOI/URL/ISBN)</label>
-                <InputText id="identifier" class="form-control" @bind-Value="entry.Identifier" />
-                <div class="form-text">
-                    Enter a unique identifier like DOI, URL, or ISBN if available.
-                </div>
-            </div>
-            <div class="col-md-6">
                 <label for="publishedAt" class="form-label">Published Date</label>
                 <InputDate id="publishedAt" class="form-control" @bind-Value="entry.PublishedAt" />
                 <div class="form-text">
                     The original publication date of this work.
                 </div>
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label">Citation Fields</label>
+            <InputDataFields 
+                Collection="@citationFieldsCollection"
+                Schema="bibtex"
+                CollectionChanged="UpdateCitationFields" />
+            <div class="form-text">
+                Enter bibliographic information such as authors, DOI, URL, etc.
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label">Metadata Fields</label>
+            <InputDataFields 
+                Collection="@metadataFieldsCollection"
+                Schema="custom"
+                CollectionChanged="UpdateMetadataFields" />
+            <div class="form-text">
+                Add custom metadata fields like ratings, tags, or notes.
             </div>
         </div>
 
@@ -88,6 +88,8 @@
     private bool isNew => string.IsNullOrEmpty(Id);
 
     private CreateEditEntryViewModel entry = new();
+    private DataFieldCollection citationFieldsCollection = new();
+    private DataFieldCollection metadataFieldsCollection = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -103,10 +105,9 @@
                         Title = existing.Title,
                         Description = existing.Description,
                         EntryType = existing.EntryType,
-                        Source = existing.Source,
-                        Citation = existing.Citation,
-                        Identifier = existing.Identifier,
-                        PublishedAt = existing.PublishedAt
+                        PublishedAt = existing.PublishedAt,
+                        CitationFields = existing.CitationFields,
+                        MetadataFields = existing.MetadataFields
                     };
                 }
                 else
@@ -120,6 +121,41 @@
                 Logger.LogError(ex, "Error loading entry");
                 Navigation.NavigateTo("/library");
             }
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        // Convert CitationFields from ViewModel to DataFieldCollection
+        citationFieldsCollection = new DataFieldCollection();
+        foreach (var field in entry.CitationFields)
+        {
+            citationFieldsCollection.AddField(new DataField
+            {
+                Key = field.Key,
+                Value = field.Value,
+                DataType = field.DataType,
+                Schema = "bibtex",
+                Order = field.Order,
+                Required = field.Required,
+                ValidationPattern = field.ValidationPattern
+            });
+        }
+
+        // Convert MetadataFields from ViewModel to DataFieldCollection
+        metadataFieldsCollection = new DataFieldCollection();
+        foreach (var field in entry.MetadataFields)
+        {
+            metadataFieldsCollection.AddField(new DataField
+            {
+                Key = field.Key,
+                Value = field.Value,
+                DataType = field.DataType,
+                Schema = "custom",
+                Order = field.Order,
+                Required = field.Required,
+                ValidationPattern = field.ValidationPattern
+            });
         }
     }
 
@@ -148,5 +184,35 @@
     private void Cancel()
     {
         Navigation.NavigateTo("/library");
+    }
+
+    private async Task UpdateCitationFields(DataFieldCollection collection)
+    {
+        entry.CitationFields = collection.Fields
+            .Select(f => new DataFieldViewModel
+            {
+                Key = f.Key,
+                Value = f.Value,
+                DataType = f.DataType,
+                Schema = f.Schema,
+                Order = f.Order,
+                Required = f.Required,
+                ValidationPattern = f.ValidationPattern
+            }).ToList();
+    }
+
+    private async Task UpdateMetadataFields(DataFieldCollection collection)
+    {
+        entry.MetadataFields = collection.Fields
+            .Select(f => new DataFieldViewModel
+            {
+                Key = f.Key,
+                Value = f.Value,
+                DataType = f.DataType,
+                Schema = f.Schema,
+                Order = f.Order,
+                Required = f.Required,
+                ValidationPattern = f.ValidationPattern
+            }).ToList();
     }
 } 

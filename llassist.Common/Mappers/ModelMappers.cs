@@ -179,15 +179,37 @@ public class ModelMappers
             EntryType = entry.EntryType,
             Title = entry.Title,
             Description = entry.Description,
-            Citation = entry.Citation,
-            Source = entry.Source,
-            Identifier = entry.Identifier,
             CreatedAt = entry.CreatedAt,
             PublishedAt = entry.PublishedAt,
             Resources = entry.Resources.Select(ToResourceViewModel).ToList(),
             Labels = entry.Labels.Select(l => l.Label.Name).ToList(),
-            Metadata = JsonSerializer.Deserialize<Dictionary<string, object>>(entry.Metadata) 
-                ?? new Dictionary<string, object>()
+            Categories = entry.Categories
+                .Select(ce => ToCategoryViewModel(ce.Category))
+                .ToList(),
+            CitationFields = entry.CitationFields.Fields
+                .OrderBy(f => f.Order)
+                .Select(f => new DataFieldViewModel
+                {
+                    Key = f.Key,
+                    Value = f.Value,
+                    DataType = f.DataType,
+                    Schema = f.Schema,
+                    Order = f.Order,
+                    Required = f.Required,
+                    ValidationPattern = f.ValidationPattern
+                }).ToList(),
+            MetadataFields = entry.MetadataFields.Fields
+                .OrderBy(f => f.Order)
+                .Select(f => new DataFieldViewModel
+                {
+                    Key = f.Key,
+                    Value = f.Value,
+                    DataType = f.DataType,
+                    Schema = f.Schema,
+                    Order = f.Order,
+                    Required = f.Required,
+                    ValidationPattern = f.ValidationPattern
+                }).ToList()
         };
     }
 
@@ -334,15 +356,34 @@ public class ModelMappers
             EntryType = entry.EntryType,
             Title = entry.Title,
             Description = entry.Description,
-            Citation = entry.Citation,
-            Source = entry.Source,
-            Identifier = entry.Identifier,
             CreatedAt = entry.CreatedAt,
             PublishedAt = entry.PublishedAt,
             Resources = entry.Resources.Select(ToResourceViewModel).ToList(),
             Labels = entry.Labels.Select(l => l.Label.Name).ToList(),
-            Metadata = JsonSerializer.Deserialize<Dictionary<string, object>>(entry.Metadata) 
-                ?? new Dictionary<string, object>(),
+            CitationFields = entry.CitationFields.Fields
+                .OrderBy(f => f.Order)
+                .Select(f => new DataFieldViewModel
+                {
+                    Key = f.Key,
+                    Value = f.Value,
+                    DataType = f.DataType,
+                    Schema = f.Schema,
+                    Order = f.Order,
+                    Required = f.Required,
+                    ValidationPattern = f.ValidationPattern
+                }).ToList(),
+            MetadataFields = entry.MetadataFields.Fields
+                .OrderBy(f => f.Order)
+                .Select(f => new DataFieldViewModel
+                {
+                    Key = f.Key,
+                    Value = f.Value,
+                    DataType = f.DataType,
+                    Schema = f.Schema,
+                    Order = f.Order,
+                    Required = f.Required,
+                    ValidationPattern = f.ValidationPattern
+                }).ToList()
         };
 
         // Group categories by schema type

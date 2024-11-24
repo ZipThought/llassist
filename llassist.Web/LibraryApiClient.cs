@@ -64,9 +64,17 @@ public class LibraryApiClient
 
     public async Task<EntryViewModel?> CreateEntryAsync(string catalogId, CreateEditEntryViewModel entry)
     {
-        var response = await _httpClient.PostAsJsonAsync($"api/library/catalogs/{catalogId}/entries", entry);
-        response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<EntryViewModel>();
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync($"api/library/catalogs/{catalogId}/entries", entry);
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync<EntryViewModel>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error creating entry: {ex.Message}");
+            throw;
+        }
     }
 
     public async Task<EntryViewModel?> UpdateEntryAsync(string id, CreateEditEntryViewModel entry)

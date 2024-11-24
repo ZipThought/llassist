@@ -12,7 +12,7 @@ using llassist.ApiService.Repositories;
 namespace llassist.ApiService.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20241117045717_AddLibraryModels")]
+    [Migration("20241124121113_AddLibraryModels")]
     partial class AddLibraryModels
     {
         /// <inheritdoc />
@@ -351,10 +351,9 @@ namespace llassist.ApiService.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("Citation")
+                    b.Property<string>("CitationFields")
                         .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
+                        .HasColumnType("jsonb");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -369,22 +368,12 @@ namespace llassist.ApiService.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
-                    b.Property<string>("Identifier")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<string>("Metadata")
+                    b.Property<string>("MetadataFields")
                         .IsRequired()
                         .HasColumnType("jsonb");
 
                     b.Property<DateTime?>("PublishedAt")
                         .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Source")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
 
                     b.Property<string>("Title")
                         .IsRequired()

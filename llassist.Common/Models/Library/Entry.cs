@@ -9,9 +9,6 @@ public class Entry : IEntity<Ulid>
     public string EntryType { get; set; } = string.Empty;  // academic, web, media, correspondence
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
-    public string Citation { get; set; } = string.Empty;   // Formatted citation text
-    public string Source { get; set; } = string.Empty;     // Origin/publisher/platform
-    public string Identifier { get; set; } = string.Empty; // DOI/URL/ISBN/etc
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? UpdatedAt { get; set; }
     public DateTimeOffset? PublishedAt { get; set; }      // Original publication date
@@ -20,8 +17,9 @@ public class Entry : IEntity<Ulid>
     [JsonIgnore]
     public virtual Catalog Catalog { get; set; } = null!;
     
-    // Flexible metadata storage
-    public string Metadata { get; set; } = "{}";
+    // Collections for structured data
+    public DataFieldCollection CitationFields { get; set; } = new();
+    public DataFieldCollection MetadataFields { get; set; } = new();
     
     public ICollection<Resource> Resources { get; set; } = [];
     public ICollection<EntryLabel> Labels { get; set; } = [];

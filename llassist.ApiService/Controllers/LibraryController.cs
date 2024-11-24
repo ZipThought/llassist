@@ -73,12 +73,13 @@ public class LibraryController : ControllerBase
     }
 
     [HttpPost("catalogs/{catalogId}/entries")]
-    public async Task<ActionResult<EntryViewModel>> CreateEntry(string catalogId, [FromBody] EntryViewModel entry)
+    public async Task<ActionResult<EntryViewModel>> CreateEntry(string catalogId, CreateEditEntryViewModel entry)
     {
         try
         {
-            var created = await _libraryService.CreateEntryAsync(Ulid.Parse(catalogId), entry);
-            return CreatedAtAction(nameof(GetEntry), new { id = created.Id }, created);
+            var ulid = Ulid.Parse(catalogId);
+            var created = await _libraryService.CreateEntryAsync(ulid, entry);
+            return created != null ? Ok(created) : BadRequest();
         }
         catch (Exception ex)
         {
@@ -90,12 +91,17 @@ public class LibraryController : ControllerBase
     [HttpGet("entries/{id}")]
     public async Task<ActionResult<EntryViewModel>> GetEntry(string id)
     {
-        var entry = await _libraryService.GetEntryAsync(Ulid.Parse(id));
-        if (entry == null)
+        try
         {
-            return NotFound();
+            var ulid = Ulid.Parse(id);
+            var entry = await _libraryService.GetEntryAsync(ulid);
+            return entry != null ? Ok(entry) : NotFound();
         }
-        return Ok(entry);
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting entry");
+            return StatusCode(500, "An error occurred while getting the entry");
+        }
     }
 
     [HttpGet("catalogs/{catalogId}/entries")]
@@ -218,16 +224,13 @@ public class LibraryController : ControllerBase
     }
 
     [HttpPut("entries/{id}")]
-    public async Task<ActionResult<EntryViewModel>> UpdateEntry(string id, [FromBody] CreateEditEntryViewModel entry)
+    public async Task<ActionResult<EntryViewModel>> UpdateEntry(string id, CreateEditEntryViewModel entry)
     {
         try
         {
-            var updated = await _libraryService.UpdateEntryAsync(Ulid.Parse(id), entry);
-            if (updated == null)
-            {
-                return NotFound();
-            }
-            return Ok(updated);
+            var ulid = Ulid.Parse(id);
+            var updated = await _libraryService.UpdateEntryAsync(ulid, entry);
+            return updated != null ? Ok(updated) : NotFound();
         }
         catch (Exception ex)
         {
@@ -239,12 +242,17 @@ public class LibraryController : ControllerBase
     [HttpDelete("entries/{id}")]
     public async Task<IActionResult> DeleteEntry(string id)
     {
-        var result = await _libraryService.DeleteEntryAsync(Ulid.Parse(id));
-        if (!result)
+        try
         {
-            return NotFound();
+            var ulid = Ulid.Parse(id);
+            var success = await _libraryService.DeleteEntryAsync(ulid);
+            return success ? Ok() : NotFound();
         }
-        return NoContent();
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting entry");
+            return StatusCode(500, "An error occurred while deleting the entry");
+        }
     }
 
     [HttpGet("categories/{id}")]

@@ -87,14 +87,12 @@ namespace llassist.ApiService.Migrations
                     EntryType = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     Title = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
                     Description = table.Column<string>(type: "character varying(5000)", maxLength: 5000, nullable: false),
-                    Citation = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: false),
-                    Source = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
-                    Identifier = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     PublishedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     CatalogId = table.Column<string>(type: "text", nullable: false),
-                    Metadata = table.Column<string>(type: "jsonb", nullable: false)
+                    CitationFields = table.Column<string>(type: "jsonb", nullable: false),
+                    MetadataFields = table.Column<string>(type: "jsonb", nullable: false)
                 },
                 constraints: table =>
                 {

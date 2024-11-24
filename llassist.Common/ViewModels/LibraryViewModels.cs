@@ -17,15 +17,15 @@ public class EntryViewModel
     public string EntryType { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
-    public string Citation { get; set; } = string.Empty;
-    public string Source { get; set; } = string.Empty;
-    public string Identifier { get; set; } = string.Empty;
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? PublishedAt { get; set; }
     public IList<ResourceViewModel> Resources { get; set; } = [];
     public IList<string> Labels { get; set; } = [];
     public IList<CategoryViewModel> Categories { get; set; } = [];
-    public IDictionary<string, object> Metadata { get; set; } = new Dictionary<string, object>();
+    
+    // Structured data fields
+    public IList<DataFieldViewModel> CitationFields { get; set; } = [];
+    public IList<DataFieldViewModel> MetadataFields { get; set; } = [];
 }
 
 public class ResourceViewModel
@@ -81,8 +81,12 @@ public class CategoryBreadcrumbViewModel
 
 public class EntryWithCategoriesViewModel : EntryViewModel
 {
-    public IDictionary<string, IList<CategoryPathViewModel>> Categories { get; set; }
+    public IDictionary<string, IList<CategoryPathViewModel>> Categories { get; set; } 
         = new Dictionary<string, IList<CategoryPathViewModel>>();
+    
+    // Structured data fields
+    public IList<DataFieldViewModel> CitationFields { get; set; } = [];
+    public IList<DataFieldViewModel> MetadataFields { get; set; } = [];
 }
 
 public class CatalogWithCategoriesViewModel : CatalogViewModel
@@ -124,14 +128,19 @@ public class CreateEditEntryViewModel
     [StringLength(50)]
     public string EntryType { get; set; } = string.Empty;
     
-    [StringLength(200)]
-    public string Source { get; set; } = string.Empty;
-    
-    [StringLength(2000)]
-    public string Citation { get; set; } = string.Empty;
-    
-    [StringLength(200)]
-    public string Identifier { get; set; } = string.Empty;
-    
     public DateTimeOffset? PublishedAt { get; set; }
+
+    public IList<DataFieldViewModel> CitationFields { get; set; } = [];
+    public IList<DataFieldViewModel> MetadataFields { get; set; } = [];
+}
+
+public class DataFieldViewModel
+{
+    public string Key { get; set; } = string.Empty;
+    public string Value { get; set; } = string.Empty;
+    public string DataType { get; set; } = "string";
+    public string Schema { get; set; } = string.Empty;
+    public int Order { get; set; }
+    public bool Required { get; set; }
+    public string? ValidationPattern { get; set; }
 } 

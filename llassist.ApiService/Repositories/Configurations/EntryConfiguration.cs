@@ -2,6 +2,7 @@ using llassist.ApiService.Repositories.Converters;
 using llassist.Common.Models.Library;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using System.Text.Json;
 
 namespace llassist.ApiService.Repositories.Configurations;
 
@@ -27,14 +28,19 @@ public class EntryConfiguration : IEntityTypeConfiguration<Entry>
         builder.Property(e => e.Description)
             .HasMaxLength(5000);
 
-        builder.Property(e => e.Citation)
-            .HasMaxLength(2000);
+        builder.Property(e => e.CitationFields)
+            .HasColumnType("jsonb")
+            .HasConversion(
+                v => JsonSerializer.Serialize(v.Fields, JsonSerializerOptions.Default),
+                json => new DataFieldCollection(JsonSerializer.Deserialize<List<DataField>>(json, JsonSerializerOptions.Default))
+            );
 
-        builder.Property(e => e.Source)
-            .HasMaxLength(200);
-
-        builder.Property(e => e.Identifier)
-            .HasMaxLength(200);
+        builder.Property(e => e.MetadataFields)
+            .HasColumnType("jsonb")
+            .HasConversion(
+                v => JsonSerializer.Serialize(v.Fields, JsonSerializerOptions.Default),
+                json => new DataFieldCollection(JsonSerializer.Deserialize<List<DataField>>(json, JsonSerializerOptions.Default))
+            );
 
         builder.Property(e => e.CreatedAt)
             .IsRequired()
@@ -45,9 +51,6 @@ public class EntryConfiguration : IEntityTypeConfiguration<Entry>
 
         builder.Property(e => e.PublishedAt)
             .HasConversion(new UtcDateTimeOffsetConverter());
-
-        builder.Property(e => e.Metadata)
-            .HasColumnType("jsonb");
 
         builder.Property(e => e.CatalogId)
             .HasConversion(new UlidToStringConverter());

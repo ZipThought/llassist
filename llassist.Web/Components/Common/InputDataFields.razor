@@ -1,0 +1,113 @@
+@using llassist.Common.Models.Library
+
+<div class="structured-data-editor">
+    @foreach (var field in Fields)
+    {
+        <div class="mb-2">
+            <div class="input-group input-group-sm">
+                <input type="text" class="form-control"
+                       placeholder="Key"
+                       value="@field.Key"
+                       @onchange="@(e => UpdateKey(field, e.Value?.ToString()))" />
+                <input type="text" class="form-control"
+                       placeholder="Value"
+                       value="@field.Value"
+                       @onchange="@(e => UpdateValue(field, e.Value?.ToString()))" />
+                <input type="text" class="form-control"
+                       placeholder="Type"
+                       value="@field.DataType"
+                       @onchange="@(e => UpdateDataType(field, e.Value?.ToString()))" />
+                <button type="button" class="btn btn-outline-danger" 
+                        @onclick="@(() => RemoveField(field))">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>
+    }
+    <button type="button" class="btn btn-sm btn-outline-secondary mt-2" @onclick="AddField">
+        <i class="bi bi-plus"></i> Add Field
+    </button>
+</div>
+
+@code {
+    [Parameter]
+    public DataFieldCollection Collection { get; set; } = new();
+
+    [Parameter]
+    public string Schema { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<DataFieldCollection> CollectionChanged { get; set; }
+
+    private IReadOnlyCollection<DataField> Fields => Collection.Fields;
+
+    private async Task NotifyChange()
+    {
+        await CollectionChanged.InvokeAsync(Collection);
+    }
+
+    private async Task UpdateKey(DataField field, string? newKey)
+    {
+        if (string.IsNullOrEmpty(newKey)) return;
+        Collection.RemoveField(field.Key, Schema);
+        Collection.AddField(new DataField
+        {
+            Key = newKey,
+            Value = field.Value,
+            DataType = field.DataType,
+            Schema = Schema,
+            Order = field.Order,
+            Required = field.Required
+        });
+        await NotifyChange();
+    }
+
+    private async Task UpdateValue(DataField field, string? value)
+    {
+        Collection.RemoveField(field.Key, Schema);
+        Collection.AddField(new DataField
+        {
+            Key = field.Key,
+            Value = value ?? string.Empty,
+            DataType = field.DataType,
+            Schema = Schema,
+            Order = field.Order,
+            Required = field.Required
+        });
+        await NotifyChange();
+    }
+
+    private async Task UpdateDataType(DataField field, string? dataType)
+    {
+        Collection.RemoveField(field.Key, Schema);
+        Collection.AddField(new DataField
+        {
+            Key = field.Key,
+            Value = field.Value,
+            DataType = dataType ?? "string",
+            Schema = Schema,
+            Order = field.Order,
+            Required = field.Required
+        });
+        await NotifyChange();
+    }
+
+    private async Task AddField()
+    {
+        Collection.AddField(new DataField
+        {
+            Key = $"field{Fields.Count + 1}",
+            Value = string.Empty,
+            DataType = "string",
+            Schema = Schema,
+            Order = Fields.Count + 1
+        });
+        await NotifyChange();
+    }
+
+    private async Task RemoveField(DataField field)
+    {
+        Collection.RemoveField(field.Key, Schema);
+        await NotifyChange();
+    }
+} 

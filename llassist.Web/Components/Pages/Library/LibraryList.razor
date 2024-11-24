@@ -94,7 +94,7 @@
                                 <th>Title</th>
                                 <th>Type</th>
                                 <th>Categories</th>
-                                <th>Source</th>
+                                <th>Citation</th>
                                 <th>Published</th>
                                 <th>Labels</th>
                                 <th>Actions</th>
@@ -122,7 +122,27 @@
                                             <span class="text-muted">No categories</span>
                                         }
                                     </td>
-                                    <td>@entry.Source</td>
+                                    <td>
+                                        @{
+                                            var author = entry.CitationFields.FirstOrDefault(f => f.Key == "author")?.Value;
+                                            var year = entry.CitationFields.FirstOrDefault(f => f.Key == "year")?.Value;
+                                            var doi = entry.CitationFields.FirstOrDefault(f => f.Key == "doi")?.Value;
+                                        }
+                                        <div>
+                                            @if (!string.IsNullOrEmpty(author))
+                                            {
+                                                <span>@author</span>
+                                            }
+                                            @if (!string.IsNullOrEmpty(year))
+                                            {
+                                                <span> (@year)</span>
+                                            }
+                                        </div>
+                                        @if (!string.IsNullOrEmpty(doi))
+                                        {
+                                            <div class="small text-muted">DOI: @doi</div>
+                                        }
+                                    </td>
                                     <td>@(entry.PublishedAt?.ToString("d") ?? "-")</td>
                                     <td>
                                         @foreach (var label in entry.Labels)

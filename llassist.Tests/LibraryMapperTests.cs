@@ -242,4 +242,44 @@ public class LibraryMapperTests
         Assert.Equal("/Science/Physics", viewModel.CategoryPaths[0].Path);
         Assert.Equal(2, viewModel.CategoryPaths[0].Breadcrumbs.Count);
     }
+
+    [Fact]
+    public void ToEntryWithCategoriesViewModel_HandlesStructuredData()
+    {
+        // Arrange
+        var entry = new Entry
+        {
+            Id = Ulid.NewUlid(),
+            Title = "Test Entry"
+        };
+
+        entry.CitationFields.AddField(new DataField
+        {
+            Key = "author",
+            Value = "John Doe",
+            DataType = "string",
+            Schema = "bibtex",
+            Order = 1
+        });
+
+        entry.MetadataFields.AddField(new DataField
+        {
+            Key = "rating",
+            Value = "5",
+            DataType = "number",
+            Schema = "review",
+            Order = 1
+        });
+
+        // Act
+        var viewModel = ModelMappers.ToEntryWithCategoriesViewModel(entry);
+
+        // Assert
+        Assert.Single(viewModel.CitationFields);
+        Assert.Single(viewModel.MetadataFields);
+        Assert.Equal("author", viewModel.CitationFields[0].Key);
+        Assert.Equal("rating", viewModel.MetadataFields[0].Key);
+        Assert.Equal("bibtex", viewModel.CitationFields[0].Schema);
+        Assert.Equal("review", viewModel.MetadataFields[0].Schema);
+    }
 } 

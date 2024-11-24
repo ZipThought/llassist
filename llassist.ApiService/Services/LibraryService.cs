@@ -16,10 +16,10 @@ public interface ILibraryService
     Task<bool> DeleteCatalogAsync(Ulid id);
 
     // Entry operations
-    Task<EntryViewModel> CreateEntryAsync(Ulid catalogId, EntryViewModel entry);
+    Task<EntryViewModel?> CreateEntryAsync(Ulid catalogId, CreateEditEntryViewModel entry);
     Task<EntryViewModel?> GetEntryAsync(Ulid id);
     Task<IEnumerable<EntryViewModel>> GetEntriesByCatalogAsync(Ulid catalogId);
-    Task<EntryViewModel?> UpdateEntryAsync(Ulid id, CreateEditEntryViewModel entryVm);
+    Task<EntryViewModel?> UpdateEntryAsync(Ulid id, CreateEditEntryViewModel entry);
     Task<bool> DeleteEntryAsync(Ulid id);
 
     // Category operations
@@ -106,22 +106,50 @@ public class LibraryService : ILibraryService
         return await _catalogRepository.DeleteAsync(id);
     }
 
-    public async Task<EntryViewModel> CreateEntryAsync(Ulid catalogId, EntryViewModel entryVm)
+    public async Task<EntryViewModel?> CreateEntryAsync(Ulid catalogId, CreateEditEntryViewModel entryVm)
     {
-        var entry = new Entry
+        var newEntry = new Entry
         {
             CatalogId = catalogId,
             EntryType = entryVm.EntryType,
             Title = entryVm.Title,
             Description = entryVm.Description,
-            Citation = entryVm.Citation,
-            Source = entryVm.Source,
-            Identifier = entryVm.Identifier,
             PublishedAt = entryVm.PublishedAt,
-            Metadata = JsonSerializer.Serialize(entryVm.Metadata)
+            CitationFields = new DataFieldCollection(),
+            MetadataFields = new DataFieldCollection()
         };
 
-        var created = await _entryRepository.CreateAsync(entry);
+        // Map citation fields
+        foreach (var field in entryVm.CitationFields)
+        {
+            newEntry.CitationFields.AddField(new DataField
+            {
+                Key = field.Key,
+                Value = field.Value,
+                DataType = field.DataType,
+                Schema = field.Schema,
+                Order = field.Order,
+                Required = field.Required,
+                ValidationPattern = field.ValidationPattern
+            });
+        }
+
+        // Map metadata fields
+        foreach (var field in entryVm.MetadataFields)
+        {
+            newEntry.MetadataFields.AddField(new DataField
+            {
+                Key = field.Key,
+                Value = field.Value,
+                DataType = field.DataType,
+                Schema = field.Schema,
+                Order = field.Order,
+                Required = field.Required,
+                ValidationPattern = field.ValidationPattern
+            });
+        }
+
+        var created = await _entryRepository.CreateAsync(newEntry);
         return MapToEntryViewModel(created);
     }
 
@@ -139,19 +167,47 @@ public class LibraryService : ILibraryService
 
     public async Task<EntryViewModel?> UpdateEntryAsync(Ulid id, CreateEditEntryViewModel entryVm)
     {
-        var entry = await _entryRepository.ReadAsync(id);
-        if (entry == null) return null;
+        var existingEntry = await _entryRepository.ReadAsync(id);
+        if (existingEntry == null) return null;
 
-        entry.Title = entryVm.Title;
-        entry.Description = entryVm.Description;
-        entry.EntryType = entryVm.EntryType;
-        entry.Source = entryVm.Source;
-        entry.Citation = entryVm.Citation;
-        entry.Identifier = entryVm.Identifier;
-        entry.PublishedAt = entryVm.PublishedAt;
-        entry.UpdatedAt = DateTimeOffset.UtcNow;
+        existingEntry.Title = entryVm.Title;
+        existingEntry.Description = entryVm.Description;
+        existingEntry.EntryType = entryVm.EntryType;
+        existingEntry.PublishedAt = entryVm.PublishedAt;
 
-        var updated = await _entryRepository.UpdateAsync(entry);
+        // Replace citation fields
+        existingEntry.CitationFields = new DataFieldCollection();
+        foreach (var field in entryVm.CitationFields)
+        {
+            existingEntry.CitationFields.AddField(new DataField
+            {
+                Key = field.Key,
+                Value = field.Value,
+                DataType = field.DataType,
+                Schema = field.Schema,
+                Order = field.Order,
+                Required = field.Required,
+                ValidationPattern = field.ValidationPattern
+            });
+        }
+
+        // Replace metadata fields
+        existingEntry.MetadataFields = new DataFieldCollection();
+        foreach (var field in entryVm.MetadataFields)
+        {
+            existingEntry.MetadataFields.AddField(new DataField
+            {
+                Key = field.Key,
+                Value = field.Value,
+                DataType = field.DataType,
+                Schema = field.Schema,
+                Order = field.Order,
+                Required = field.Required,
+                ValidationPattern = field.ValidationPattern
+            });
+        }
+
+        var updated = await _entryRepository.UpdateAsync(existingEntry);
         return MapToEntryViewModel(updated);
     }
 
@@ -475,9 +531,6 @@ public class LibraryService : ILibraryService
             EntryType = entry.EntryType,
             Title = entry.Title,
             Description = entry.Description,
-            Citation = entry.Citation,
-            Source = entry.Source,
-            Identifier = entry.Identifier,
             CreatedAt = entry.CreatedAt,
             PublishedAt = entry.PublishedAt,
             Resources = entry.Resources.Select(MapToResourceViewModel).ToList(),
@@ -485,8 +538,30 @@ public class LibraryService : ILibraryService
             Categories = entry.Categories
                 .Select(ce => MapToCategoryViewModel(ce.Category))
                 .ToList(),
-            Metadata = JsonSerializer.Deserialize<Dictionary<string, object>>(entry.Metadata) 
-                ?? new Dictionary<string, object>()
+            CitationFields = entry.CitationFields.Fields
+                .OrderBy(f => f.Order)
+                .Select(f => new DataFieldViewModel
+                {
+                    Key = f.Key,
+                    Value = f.Value,
+                    DataType = f.DataType,
+                    Schema = f.Schema,
+                    Order = f.Order,
+                    Required = f.Required,
+                    ValidationPattern = f.ValidationPattern
+                }).ToList(),
+            MetadataFields = entry.MetadataFields.Fields
+                .OrderBy(f => f.Order)
+                .Select(f => new DataFieldViewModel
+                {
+                    Key = f.Key,
+                    Value = f.Value,
+                    DataType = f.DataType,
+                    Schema = f.Schema,
+                    Order = f.Order,
+                    Required = f.Required,
+                    ValidationPattern = f.ValidationPattern
+                }).ToList()
         };
     }
 
