@@ -4,9 +4,12 @@
 @inject ArticleApiClient ArticleApiClient
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
+@inject IOptions<FileUploadSettings> FileUploadSettings
 
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.Extensions.Options
+@using llassist.Common.Models.Configuration
 
 <PageTitle>Projects</PageTitle>
 
@@ -62,8 +65,14 @@ else
             <label for="fileInput" class="mb-0 w-100">
                 <div class="text-center">
                     <i class="bi bi-cloud-upload fs-2 mb-2"></i>
-                    <p class="mb-1">Upload a file or drag and drop</p>
-                    <p class="text-muted small">CSV, RIS, or BibTeX up to 10MB</p>
+                    <p class="mb-1">@(isUploading ? "Uploading..." : "Upload a file or drag and drop")</p>
+                    <p class="text-muted small">
+                        @string.Join(", ", UploadSettings.AllowedExtensions) up to @UploadSettings.MaxSizeMB MB
+                    </p>
+                    @if (!string.IsNullOrEmpty(uploadError))
+                    {
+                        <p class="text-danger small">@uploadError</p>
+                    }
                 </div>
             </label>
         </div>
@@ -214,6 +223,9 @@ else if (!string.IsNullOrEmpty(selectedProjectId))
     private string? selectedProjectId;
     private string? selectedProjectName;
     private string inputFileKey = Guid.NewGuid().ToString();
+    private FileUploadSettings UploadSettings => FileUploadSettings.Value;
+    private bool isUploading;
+    private string uploadError = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -278,16 +290,68 @@ else if (!string.IsNullOrEmpty(selectedProjectId))
 
     private async Task HandleFileSelected(InputFileChangeEventArgs e)
     {
-        if (e.File != null && !string.IsNullOrEmpty(selectedProjectId))
+        uploadError = string.Empty;  // Clear error on new attempt
+
+        if (!IsValidUpload(e.File, out string error))
         {
-            var file = e.File;
+            uploadError = error;
+            return;
+        }
+
+        await UploadFile(e.File);
+    }
+
+    private bool IsValidUpload(IBrowserFile? file, out string error)
+    {
+        error = string.Empty;
+        
+        if (file == null || string.IsNullOrEmpty(selectedProjectId))
+        {
+            error = "No file selected or no project selected";
+            return false;
+        }
+
+        if (file.Size > UploadSettings.MaxSizeBytes)
+        {
+            error = $"File size exceeds {UploadSettings.MaxSizeMB}MB limit";
+            return false;
+        }
+
+        var extension = Path.GetExtension(file.Name).ToLowerInvariant();
+        if (!UploadSettings.AllowedExtensions.Contains(extension))
+        {
+            error = $"Only {string.Join(", ", UploadSettings.AllowedExtensions)} files are allowed";
+            return false;
+        }
+
+        return true;
+    }
+
+    private async Task UploadFile(IBrowserFile file)
+    {
+        try
+        {
+            isUploading = true;
             var result = await ProjectApiClient.UploadCSVAsync(selectedProjectId, file);
+            
             if (result != null)
             {
                 articles = result.Articles;
-                StateHasChanged();
-                inputFileKey = Guid.NewGuid().ToString(); // Change the key to reset the file input
+                inputFileKey = Guid.NewGuid().ToString();
+                uploadError = string.Empty;  // Clear error after successful upload
             }
+            else
+            {
+                uploadError = "Upload failed. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            uploadError = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            isUploading = false;
         }
     }
 

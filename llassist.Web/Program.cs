@@ -1,5 +1,7 @@
+using llassist.Common.Models.Configuration;
 using llassist.Web;
 using llassist.Web.Components;
+using Microsoft.AspNetCore.Http.Features;
 
 internal partial class Program
 {
@@ -14,6 +16,15 @@ internal partial class Program
         // Add services to the container.
         builder.Services.AddRazorComponents()
             .AddInteractiveServerComponents();
+
+        // Adjust the max file size for file uploads
+        builder.Services.Configure<FileUploadSettings>(
+            builder.Configuration.GetSection("FileUpload"));
+        builder.Services.Configure<FormOptions>(options =>
+        {
+            options.MultipartBodyLengthLimit = 
+                builder.Configuration.GetValue<int>("FileUpload:MaxSizeBytes");
+        });
 
         // Register HttpClient for API services
         builder.Services.AddHttpClient<ProjectApiClient>(client => client.BaseAddress = new Uri("http+https://apiservice"));
