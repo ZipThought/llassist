@@ -19,7 +19,7 @@ using Microsoft.Extensions.Configuration;
 using System;
 using System.Text.Json;
 using Microsoft.AspNetCore.Diagnostics;
-using Microsoft.AspNetCore.Mvc;
+using llassist.Common.Models.Responses;
 
 internal class Program
 {
@@ -95,17 +95,19 @@ internal class Program
             errorApp.Run(async context =>
             {
                 context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-                context.Response.ContentType = "application/problem+json";
+                context.Response.ContentType = "application/json";
                 
                 var exception = context.Features.Get<IExceptionHandlerFeature>();
                 if (exception != null)
                 {
-                    await context.Response.WriteAsJsonAsync(new ProblemDetails
+                    var error = new ApiErrorResponse
                     {
-                        Status = StatusCodes.Status500InternalServerError,
-                        Title = "An unexpected error occurred",
-                        Type = "https://tools.ietf.org/html/rfc7231#section-6.6.1"
-                    });
+                        HttpStatusCode = context.Response.StatusCode,
+                        Message = "An unexpected error occurred",
+                        Details = exception.Error.Message,
+                        Timestamp = DateTime.UtcNow
+                    };
+                    await context.Response.WriteAsJsonAsync(error);
                 }
             });
         });
