@@ -23,7 +23,7 @@ internal partial class Program
         builder.Services.Configure<FormOptions>(options =>
         {
             options.MultipartBodyLengthLimit = 
-                builder.Configuration.GetValue<int>("FileUpload:MaxSizeBytes");
+                builder.Configuration.GetValue<int>("FileUpload:MaxSizeMB") * 1024 * 1024;
         });
 
         // Register HttpClient for API services

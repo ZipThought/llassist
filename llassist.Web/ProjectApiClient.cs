@@ -1,15 +1,21 @@
-﻿using llassist.Common.ViewModels;
+﻿using llassist.Common.Models.Configuration;
+using llassist.Common.ViewModels;
 using Microsoft.AspNetCore.Components.Forms;
+using Microsoft.Extensions.Options;
 
 namespace llassist.Web;
 
 public class ProjectApiClient
 {
     private readonly HttpClient _httpClient;
+    private readonly FileUploadSettings _uploadSettings;
 
-    public ProjectApiClient(HttpClient httpClient)
+    public ProjectApiClient(
+        HttpClient httpClient, 
+        IOptions<FileUploadSettings> uploadSettings)
     {
         _httpClient = httpClient;
+        _uploadSettings = uploadSettings.Value;
     }
 
     public async Task<ProjectViewModel?> CreateProjectAsync(CreateEditProjectViewModel createProject)
@@ -46,7 +52,7 @@ public class ProjectApiClient
     public async Task<ProjectViewModel?> UploadCSVAsync(string projectId, IBrowserFile file)
     {
         using var content = new MultipartFormDataContent();
-        using var fileStream = file.OpenReadStream();
+        using var fileStream = file.OpenReadStream(maxAllowedSize: _uploadSettings.MaxSizeBytes);
         var streamContent = new StreamContent(fileStream);
         content.Add(streamContent, "file", file.Name);
 

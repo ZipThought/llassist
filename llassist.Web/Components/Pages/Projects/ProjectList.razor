@@ -317,7 +317,15 @@ else if (!string.IsNullOrEmpty(selectedProjectId))
             return false;
         }
 
-        var extension = Path.GetExtension(file.Name).ToLowerInvariant();
+        // Sanitize by removing any path components from the filename
+        var fileName = Path.GetFileName(file.Name); 
+        if (string.IsNullOrEmpty(fileName))
+        {
+            error = "Invalid filename";
+            return false;
+        }
+
+        var extension = Path.GetExtension(fileName).ToLowerInvariant();
         if (!UploadSettings.AllowedExtensions.Contains(extension))
         {
             error = $"Only {string.Join(", ", UploadSettings.AllowedExtensions)} files are allowed";
