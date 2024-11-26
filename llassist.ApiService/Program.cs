@@ -74,6 +74,7 @@ internal class Program
         });
         builder.Services.AddScoped<INLPService, NLPService>();
         builder.Services.AddScoped<IAppSettingService, AppSettingService>();
+        builder.Services.AddScoped<IFileUploadSettingsService, FileUploadSettingsService>();
 
         // Register the Controllers
         builder.Services.AddControllers();

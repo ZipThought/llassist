@@ -17,17 +17,9 @@ internal partial class Program
         builder.Services.AddRazorComponents()
             .AddInteractiveServerComponents();
 
-        // Adjust the max file size for file uploads
-        builder.Services.Configure<FileUploadSettings>(
-            builder.Configuration.GetSection("FileUpload"));
-        builder.Services.Configure<FormOptions>(options =>
-        {
-            options.MultipartBodyLengthLimit = 
-                builder.Configuration.GetValue<int>("FileUpload:MaxSizeMB") * 1024 * 1024;
-        });
-
         // Register HttpClient for API services
         builder.Services.AddHttpClient<ProjectApiClient>(client => client.BaseAddress = new Uri("http+https://apiservice"));
+        builder.Services.AddHttpClient<FileUploadSettingsApiClient>(client => client.BaseAddress = new Uri("http+https://apiservice"));
         builder.Services.AddHttpClient<AppSettingApiClient>(client => client.BaseAddress = new Uri("http+https://apiservice"));
         builder.Services.AddHttpClient<ArticleApiClient>(client => client.BaseAddress = new Uri("http+https://apiservice"));
         var app = builder.Build();

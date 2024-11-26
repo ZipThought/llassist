@@ -1,6 +1,7 @@
 ﻿using CsvHelper;
 using llassist.ApiService.Services;
 using llassist.Common.Models;
+using llassist.Common.Validators;
 using llassist.Common.ViewModels;
 using Microsoft.AspNetCore.Mvc;
 using System.Globalization;
@@ -15,15 +16,21 @@ public class ProjectController : ControllerBase
     private readonly ProjectService _projectService;
     private readonly INLPService _nlpService;
     private readonly ILogger<ProjectController> _logger;
-
     private readonly ProjectProcessingService _projectProcessingService;
+    private readonly IFileUploadSettingsService _fileUploadSettings;
 
-    public ProjectController(ProjectService projectService, INLPService nlpService, ILogger<ProjectController> logger, ProjectProcessingService projectProcessingService)
+    public ProjectController(
+        ProjectService projectService, 
+        INLPService nlpService, 
+        ILogger<ProjectController> logger, 
+        ProjectProcessingService projectProcessingService,
+        IFileUploadSettingsService fileUploadSettings)
     {
         _projectService = projectService;
         _nlpService = nlpService;
         _logger = logger;
         _projectProcessingService = projectProcessingService;
+        _fileUploadSettings = fileUploadSettings;
     }
 
     [HttpPost("create")]
@@ -84,6 +91,16 @@ public class ProjectController : ControllerBase
     {
         if (file == null || file.Length == 0)
             return BadRequest("File is empty");
+
+        var uploadSettings = await _fileUploadSettings.GetFileUploadSettingsAsync();
+        var validationResult = FileValidator.ValidateFile(
+            file.FileName,
+            file.Length,
+            uploadSettings
+        );
+
+        if (!validationResult.IsValid)
+            return BadRequest(validationResult.ErrorMessage);
 
         var reader = new StreamReader(file.OpenReadStream());
         var articles = ArticleService.ReadArticlesFromCsv(reader, Ulid.Parse(projectId));
