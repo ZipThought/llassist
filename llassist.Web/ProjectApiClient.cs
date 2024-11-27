@@ -76,6 +76,11 @@ public class ProjectApiClient
         return await _httpClient.GetFromJsonAsync<ProjectViewModel>($"api/project/process/{projectId}");
     }
 
+    public async Task<ProcessResultViewModel?> GetProgressAsync(string projectId)
+    {
+        return await _httpClient.GetFromJsonAsync<ProcessResultViewModel>($"api/project/progress/{projectId}");
+    }
+
     public async Task<byte[]> DownloadResultsAsync(string projectId)
     {
         var response = await _httpClient.GetAsync($"api/project/download/{projectId}");
