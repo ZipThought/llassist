@@ -1,4 +1,4 @@
-using llassist.Common.Models.Configuration;
+using llassist.Common.Models;
 
 namespace llassist.Common.Validators;
 

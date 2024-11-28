@@ -1,4 +1,3 @@
-using llassist.Common.Models.Configuration;
 using llassist.Web;
 using llassist.Web.Components;
 using Microsoft.AspNetCore.Http.Features;
@@ -19,7 +18,6 @@ internal partial class Program
 
         // Register HttpClient for API services
         builder.Services.AddHttpClient<ProjectApiClient>(client => client.BaseAddress = new Uri("http+https://apiservice"));
-        builder.Services.AddHttpClient<FileUploadSettingsApiClient>(client => client.BaseAddress = new Uri("http+https://apiservice"));
         builder.Services.AddHttpClient<AppSettingApiClient>(client => client.BaseAddress = new Uri("http+https://apiservice"));
         builder.Services.AddHttpClient<ArticleApiClient>(client => client.BaseAddress = new Uri("http+https://apiservice"));
         var app = builder.Build();

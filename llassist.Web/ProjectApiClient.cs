@@ -1,4 +1,5 @@
-﻿using llassist.Common.Validators;
+﻿using llassist.Common.Models;
+using llassist.Common.Validators;
 using llassist.Common.ViewModels;
 using Microsoft.AspNetCore.Components.Forms;
 
@@ -7,14 +8,14 @@ namespace llassist.Web;
 public class ProjectApiClient
 {
     private readonly HttpClient _httpClient;
-    private readonly FileUploadSettingsApiClient _fileUploadSettingsApiClient;
+    private readonly AppSettingApiClient _appSettingApiClient;
 
     public ProjectApiClient(
         HttpClient httpClient,
-        FileUploadSettingsApiClient fileUploadSettingsApiClient)
+        AppSettingApiClient appSettingApiClient)
     {
         _httpClient = httpClient;
-        _fileUploadSettingsApiClient = fileUploadSettingsApiClient;
+        _appSettingApiClient = appSettingApiClient;
     }
 
     public async Task<ProjectViewModel?> CreateProjectAsync(CreateEditProjectViewModel createProject)
@@ -50,10 +51,7 @@ public class ProjectApiClient
 
     public async Task<ProjectViewModel?> UploadCSVAsync(string projectId, IBrowserFile file)
     {
-        var uploadSettings = await _fileUploadSettingsApiClient.GetFileUploadSettingsAsync();
-        if (uploadSettings == null)
-            throw new InvalidOperationException("File upload settings not found.");
-
+        var uploadSettings = await _appSettingApiClient.GetFileUploadSettingsAsync();
         var validationResult = FileValidator.ValidateFile(
             file.Name,
             file.Size,

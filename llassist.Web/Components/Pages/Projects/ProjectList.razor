@@ -1,8 +1,8 @@
 ﻿@page "/project-list"
 @rendermode InteractiveServer
 @inject ProjectApiClient ProjectApiClient
-@inject FileUploadSettingsApiClient FileUploadSettingsApiClient
 @inject ArticleApiClient ArticleApiClient
+@inject AppSettingApiClient AppSettingApiClient
 @inject NavigationManager Navigation
 @inject IJSRuntime JSRuntime
 @inject IOptions<FileUploadSettings> FileUploadSettings
@@ -10,7 +10,7 @@
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.Extensions.Options
-@using llassist.Common.Models.Configuration
+@using llassist.Common.Models
 
 <PageTitle>Projects</PageTitle>
 
@@ -254,7 +254,7 @@ else if (!string.IsNullOrEmpty(selectedProjectId))
 
     private async Task LoadFileUploadSettings()
     {
-        uploadSettings = await FileUploadSettingsApiClient.GetFileUploadSettingsAsync();
+        uploadSettings = await AppSettingApiClient.GetFileUploadSettingsAsync();
     }
 
     private void CreateProject()

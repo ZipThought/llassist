@@ -59,7 +59,7 @@ internal class Program
             
             // Try to get API key from database first
             var apiKeyConfig = dbContext.AppSettings
-                .FirstOrDefault(c => c.Key == "OpenAI:ApiKey");
+                .FirstOrDefault(c => c.Key == AppSettingKeys.OpenAIApiKey);
             
             var openAIAPIKey = apiKeyConfig?.Value ?? 
                 configuration["OpenAI:ApiKey"] ??
@@ -74,7 +74,6 @@ internal class Program
         });
         builder.Services.AddScoped<INLPService, NLPService>();
         builder.Services.AddScoped<IAppSettingService, AppSettingService>();
-        builder.Services.AddScoped<IFileUploadSettingsService, FileUploadSettingsService>();
 
         // Register the Controllers
         builder.Services.AddControllers();

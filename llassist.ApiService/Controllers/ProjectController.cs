@@ -17,20 +17,20 @@ public class ProjectController : ControllerBase
     private readonly INLPService _nlpService;
     private readonly ILogger<ProjectController> _logger;
     private readonly ProjectProcessingService _projectProcessingService;
-    private readonly IFileUploadSettingsService _fileUploadSettings;
+    private readonly IAppSettingService _appSettingsService;
 
     public ProjectController(
         ProjectService projectService, 
         INLPService nlpService, 
         ILogger<ProjectController> logger, 
         ProjectProcessingService projectProcessingService,
-        IFileUploadSettingsService fileUploadSettings)
+        IAppSettingService appSettingsService)
     {
         _projectService = projectService;
         _nlpService = nlpService;
         _logger = logger;
         _projectProcessingService = projectProcessingService;
-        _fileUploadSettings = fileUploadSettings;
+        _appSettingsService = appSettingsService;
     }
 
     [HttpPost("create")]
@@ -92,7 +92,7 @@ public class ProjectController : ControllerBase
         if (file == null || file.Length == 0)
             return BadRequest("File is empty");
 
-        var uploadSettings = await _fileUploadSettings.GetFileUploadSettingsAsync();
+        var uploadSettings = await GetFileUploadSettingsAsync();
         var validationResult = FileValidator.ValidateFile(
             file.FileName,
             file.Length,
@@ -107,6 +107,24 @@ public class ProjectController : ControllerBase
         var project = await _projectService.AddArticlesToProjectAsync(Ulid.Parse(projectId), articles);
 
         return Ok(project);
+    }
+
+    private async Task<FileUploadSettings> GetFileUploadSettingsAsync()
+    {
+        var searchRequest = new SearchAppSettingViewModel 
+        { 
+            Keys = [
+                AppSettingKeys.FileUploadMaxFileMB, 
+                AppSettingKeys.FileUploadAllowedExtensions
+            ]
+        };
+
+        var searchResults = await _appSettingsService.SearchAsync(searchRequest);
+
+        return FileUploadSettings.Create(
+            searchResults.GetValueOrDefault(AppSettingKeys.FileUploadMaxFileMB)?.Value,
+            searchResults.GetValueOrDefault(AppSettingKeys.FileUploadAllowedExtensions)?.Value
+        );
     }
 
     [HttpGet("process/{projectId}")]

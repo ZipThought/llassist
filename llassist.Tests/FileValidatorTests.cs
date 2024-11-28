@@ -1,4 +1,4 @@
-using llassist.Common.Models.Configuration;
+using llassist.Common.Models;
 using llassist.Common.Validators;
 using Xunit;
 using Assert = Xunit.Assert;
@@ -11,11 +11,7 @@ public class FileValidatorTests
 
     public FileValidatorTests()
     {
-        _defaultSettings = new FileUploadSettings
-        {
-            MaxSizeMB = 5,
-            AllowedExtensions = new[] { ".jpg", ".png", ".pdf" }
-        };
+        _defaultSettings = FileUploadSettings.Create("5", ".jpg,.png,.pdf");
     }
 
     [Fact]
