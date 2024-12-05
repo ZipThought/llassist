@@ -34,7 +34,13 @@ public class ArticleViewModel
     public string Authors { get; set; } = string.Empty;
     public int Year { get; set; } = 0;
     public string Abstract { get; set; } = string.Empty;
+    public string DOI { get; set; } = string.Empty;
+    
+    public string Link { get; set; } = string.Empty;
     public bool MustRead { get; set; } = false;
+    public IList<string> Topics { get; set; } = [];
+    public IList<string> Entities { get; set; } = [];
+    public IList<string> Keywords { get; set; } = [];
     public IList<RelevanceViewModel> Relevances { get; set; } = [];
 }
 
@@ -43,6 +49,10 @@ public class RelevanceViewModel
     public string Question { get; set; } = string.Empty;
     public double RelevanceScore { get; set; } = 0;
     public bool IsRelevant { get; set; } = false;
+    public string RelevanceReason { get; set; } = string.Empty;
+    public bool IsContributing { get; set; } = false;
+    public double ContributionScore { get; set; } = 0;
+    public string ContributionReason { get; set; } = string.Empty;
 }
 
 public class ResearchQuestionsViewModel
