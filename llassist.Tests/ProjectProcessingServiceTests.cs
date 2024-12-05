@@ -66,6 +66,33 @@ public class ProjectProcessingServiceTests
     }
 
     [Fact]
+    public async Task EnqueuePreprocessingTask_ShouldThrowException_WhenProjectHasNoResearchQuestions()
+    {
+        // Arrange
+        var projectId = Ulid.NewUlid();
+        var project = new Project
+        {
+            Id = projectId,
+            Name = "Test Project",
+            ResearchQuestions = []  // Empty collection
+        };
+
+        _mockProjectRepository.Setup(r => r.ReadAsync(projectId)).ReturnsAsync(project);
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<InvalidDataException>(
+            () => _service.EnqueuePreprocessingTask(projectId)
+        );
+
+        Assert.Equal("Project must have at least one research question defined", exception.Message);
+
+        // Verify repository and logger interactions
+        _mockProjectRepository.Verify(r => r.ReadAsync(projectId), Times.Once);
+        _mockJobRepository.Verify(r => r.CreateAsync(It.IsAny<EstimateRelevanceJob>()), Times.Never);
+        _mockProducerQueue.Verify(q => q.SendAsync(It.IsAny<BackgroundTask>(), null), Times.Never);
+    }
+
+    [Fact]
     public async Task GetJobProgress_ProjectNotFound_ReturnsEmptyProcess()
     {
         // Arrange

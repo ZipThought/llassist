@@ -4,7 +4,6 @@
 @inject ArticleApiClient ArticleApiClient
 @inject AppSettingApiClient AppSettingApiClient
 @inject NavigationManager Navigation
-@inject IJSRuntime JSRuntime
 @inject IOptions<FileUploadSettings> FileUploadSettings
 
 @using Microsoft.AspNetCore.Components
@@ -27,9 +26,9 @@ else
     <table class="table">
         <thead>
             <tr>
-                <th>Name</th>
-                <th>Description</th>
-                <th class="text-end">Actions</th>
+                <th style="width: 30%">Name</th>
+                <th style="width: 50%">Description</th>
+                <th class="text-end" style="width: 20%">Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -37,18 +36,19 @@ else
             {
                 <tr @onclick="() => SelectProject(project.Id)"
                     class="@(project.Id == selectedProjectId ? "table-active" : "") clickable-row">
-                    <td><strong>@project.Name</strong></td>
-                    <td>@project.Description</td>
-                    <td>
-                        <div class="action-buttons-grid">
-                            <div class="action-buttons-row">
-                                <button class="btn btn-secondary" @onclick:stopPropagation="true" @onclick="() => EditProject(project.Id)">Edit</button>
-                                <button class="btn btn-danger" @onclick:stopPropagation="true" @onclick="() => DeleteProject(project.Id)">Delete</button>
-                            </div>
-                            <div class="action-buttons-row">
-                                <button class="btn btn-primary" @onclick:stopPropagation="true" @onclick="() => ProcessProject(project.Id)">Process</button>
-                                <button class="btn btn-success" @onclick:stopPropagation="true" @onclick="() => DownloadProject(project.Id)">Download</button>
-                            </div>
+                    <td style="width: 30%"><strong>@project.Name</strong></td>
+                    <td style="width: 50%">@project.Description</td>
+                    <td class="text-end" style="width: 20%">
+                        <div class="project-actions">
+                            <button class="btn btn-secondary" @onclick:stopPropagation="true" @onclick="() => EditProject(project.Id)">
+                                Edit
+                            </button>
+                            <button class="btn btn-danger" @onclick:stopPropagation="true" @onclick="() => DeleteProject(project.Id)">
+                                Delete
+                            </button>
+                            <button class="btn btn-primary" @onclick:stopPropagation="true" @onclick="() => NavigateToAnalysis(project.Id)">
+                                <strong>Analysis</strong>
+                            </button>
                         </div>
                     </td>
                 </tr>
@@ -214,18 +214,20 @@ else if (!string.IsNullOrEmpty(selectedProjectId))
         min-width: 90px;
         width: 100%;
     }
-</style>
 
-<script>
-    window.downloadFileFromStream = (fileName, base64String) => {
-        const link = document.createElement('a');
-        link.download = fileName;
-        link.href = "data:application/octet-stream;base64," + base64String;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    .project-actions {
+        display: flex;
+        gap: 0.1rem;
+        justify-content: flex-end;
+        width: 100%;
     }
-</script>
+
+    .project-actions .btn {
+        flex: 1;
+        min-width: 100px; 
+        white-space: wrap;
+    }
+</style>
 
 @code {
     private IEnumerable<ProjectViewModel>? projects;
@@ -267,6 +269,11 @@ else if (!string.IsNullOrEmpty(selectedProjectId))
         Navigation.NavigateTo($"/projects/edit/{id}");
     }
 
+    private void NavigateToAnalysis(string projectId)
+    {
+        Navigation.NavigateTo($"/project-analysis/{projectId}");
+    }
+    
     private async Task DeleteProject(string id)
     {
         await ProjectApiClient.DeleteProjectAsync(id);
@@ -346,30 +353,6 @@ else if (!string.IsNullOrEmpty(selectedProjectId))
         finally
         {
             isUploading = false;
-        }
-    }
-
-    private async Task ProcessProject(string id)
-    {
-        if (!string.IsNullOrEmpty(id))
-        {
-            await ProjectApiClient.ProcessArticlesAsync(id);
-        }
-    }
-
-    private async Task DownloadProject(string id)
-    {
-        if (!string.IsNullOrEmpty(id))
-        {
-            var fileBytes = await ProjectApiClient.DownloadResultsAsync(id);
-            if (fileBytes != null && fileBytes.Length > 0)
-            {
-                // Create a download filename using the project name and current timestamp
-                var fileName = $"{selectedProjectName ?? "project"}_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
-                
-                // Use JSRuntime to trigger the file download
-                await JSRuntime.InvokeVoidAsync("downloadFileFromStream", fileName, Convert.ToBase64String(fileBytes));
-            }
         }
     }
 

@@ -35,6 +35,12 @@ public class ProjectProcessingService
             throw new InvalidDataException("Project not found");
         }
 
+        if (project.ResearchQuestions.Count == 0)
+        {
+            _logger.LogError("Project {projectId} has no research questions defined", projectId);
+            throw new InvalidDataException("Project must have at least one research question defined");
+        }
+
         var estimateRelevanceJob = CreateEstimateRelevanceJob(project);
 
         _logger.LogInformation("Inserting job {jobId} for project {projectId}", estimateRelevanceJob.Id, estimateRelevanceJob.ProjectId);

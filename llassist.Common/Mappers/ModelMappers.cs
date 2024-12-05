@@ -76,9 +76,22 @@ public class ModelMappers
             Authors = article.Authors,
             Year = article.Year,
             Abstract = article.Abstract,
+            DOI = article.DOI,
+            Link = article.Link,
+            Topics = GetSemanticsByType(article, ArticleKeySemantic.TypeTopic),
+            Entities = GetSemanticsByType(article, ArticleKeySemantic.TypeEntity), 
+            Keywords = GetSemanticsByType(article, ArticleKeySemantic.TypeKeyword),
             MustRead = article.MustRead,
             Relevances = ToRelevanceViewModels(articleRelevances)
         };
+    }
+
+    private static List<string> GetSemanticsByType(Article article, string semanticType)
+    {
+        return article.ArticleKeySemantics
+            .Where(t => t.Type == semanticType)
+            .Select(t => t.Value)
+            .ToList();
     }
 
     private static List<RelevanceViewModel> ToRelevanceViewModels(ICollection<ArticleRelevance> relevances)
@@ -88,6 +101,10 @@ public class ModelMappers
             Question = relevance.Question,
             RelevanceScore = relevance.RelevanceScore,
             IsRelevant = relevance.IsRelevant,
+            RelevanceReason = relevance.RelevanceReason,
+            IsContributing = relevance.IsContributing,
+            ContributionScore = relevance.ContributionScore,
+            ContributionReason = relevance.ContributionReason
         }).ToList();
     }
 
