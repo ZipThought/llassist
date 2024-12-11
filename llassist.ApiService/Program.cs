@@ -18,6 +18,7 @@ using DotNetWorkQueue.Queue;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Text.Json;
+using llassist.Common.Models.Library;
 using Microsoft.AspNetCore.Diagnostics;
 using llassist.Common.Models.Responses;
 
@@ -42,6 +43,12 @@ internal class Program
         builder.Services.AddScoped<ICRUDRepository<Ulid, Project, BaseSearchSpec>, ProjectRepository>();
         builder.Services.AddScoped<ICRUDRepository<Ulid, Article, ArticleSearchSpec>, ArticleRepository>();
         builder.Services.AddScoped<ICRUDRepository<Ulid, EstimateRelevanceJob, EstimateRelevanceJobSearchSpec>, EstimateRelevanceJobRepository>();
+
+        // Library controllers require these repositories
+        builder.Services.AddScoped<ICRUDRepository<Ulid, Catalog, BaseSearchSpec>, CatalogRepository>();
+        builder.Services.AddScoped<ICRUDRepository<Ulid, Entry, BaseSearchSpec>, EntryRepository>();
+        builder.Services.AddScoped<ICRUDRepository<Ulid, Category, BaseSearchSpec>, CategoryRepository>();
+        builder.Services.AddScoped<ICRUDRepository<Ulid, Label, BaseSearchSpec>, LabelRepository>();
 
         // Register background task processing
         ConfigureQueue(builder.Services, builder.Configuration);
@@ -74,6 +81,9 @@ internal class Program
         });
         builder.Services.AddScoped<INLPService, NLPService>();
         builder.Services.AddScoped<IAppSettingService, AppSettingService>();
+
+        // Register the Library service
+        builder.Services.AddScoped<ILibraryService, LibraryService>();
 
         // Register the Controllers
         builder.Services.AddControllers();

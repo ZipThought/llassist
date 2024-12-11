@@ -1,0 +1,92 @@
+@rendermode InteractiveServer
+
+<div class="category-tree-view">
+    @if (!Categories.Any())
+    {
+        <div class="text-muted p-3">
+            No categories found for this schema type.
+        </div>
+    }
+    else
+    {
+        @foreach (var category in Categories)
+        {
+            <div class="category-item">
+                <div class="d-flex align-items-center @(category.Id == SelectedCategoryId ? "selected" : "")"
+                     @onclick="() => OnSelectCategory.InvokeAsync(category.Id)">
+                    @if (category.Children.Any())
+                    {
+                        <span class="expand-icon" @onclick:stopPropagation="true" 
+                              @onclick="() => ToggleExpand(category.Id)">
+                            @(expandedCategories.Contains(category.Id) ? "▼" : "▶")
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="expand-icon-placeholder">•</span>
+                    }
+                    <span class="category-name">@category.Name</span>
+                </div>
+                    
+                @if (category.Children.Any() && expandedCategories.Contains(category.Id))
+                {
+                    <div class="children-container">
+                        <CategoryTreeView 
+                            Categories="category.Children"
+                            OnSelectCategory="OnSelectCategory"
+                            SelectedCategoryId="SelectedCategoryId" />
+                    </div>
+                }
+            </div>
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public IList<CategoryViewModel> Categories { get; set; } = [];
+    [Parameter] public EventCallback<string> OnSelectCategory { get; set; }
+    [Parameter] public string? SelectedCategoryId { get; set; }
+
+    private HashSet<string> expandedCategories = new();
+
+    private void ToggleExpand(string categoryId)
+    {
+        if (expandedCategories.Contains(categoryId))
+            expandedCategories.Remove(categoryId);
+        else
+            expandedCategories.Add(categoryId);
+    }
+
+    private bool IsExpanded(string categoryId) => expandedCategories.Contains(categoryId);
+}
+
+<style>
+    .category-item {
+        padding: 2px 0;
+    }
+
+    .children-container {
+        margin-left: 20px;
+        border-left: 1px solid #dee2e6;
+        padding-left: 10px;
+    }
+
+    .expand-icon {
+        cursor: pointer;
+        width: 20px;
+        text-align: center;
+        user-select: none;
+    }
+
+    .expand-icon-placeholder {
+        width: 20px;
+        text-align: center;
+        opacity: 0.3;
+    }
+
+    .selected {
+        background-color: var(--primary-blue);
+        color: white;
+        border-radius: 4px;
+    }
+</style> 

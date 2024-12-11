@@ -1,0 +1,218 @@
+@page "/library/catalogs/{catalogId}/entries/new"
+@page "/library/entries/{id}/edit"
+@rendermode InteractiveServer
+@inject LibraryApiClient LibraryClient
+@inject NavigationManager Navigation
+@inject ILogger<EntryForm> Logger
+
+<PageTitle>@(isNew ? "Create Entry" : "Edit Entry")</PageTitle>
+
+<div class="content-card">
+    <h2>@(isNew ? "Create New Entry" : "Edit Entry")</h2>
+
+    <EditForm Model="@entry" OnValidSubmit="HandleValidSubmit" FormName="entryForm">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="text-danger" />
+
+        <div class="mb-4">
+            <label for="title" class="form-label">Title *</label>
+            <InputText id="title" class="form-control" @bind-Value="entry.Title" />
+        </div>
+
+        <div class="mb-4">
+            <label for="description" class="form-label">Description</label>
+            <InputTextArea id="description" class="form-control" rows="3" @bind-Value="entry.Description" />
+            <div class="form-text">
+                Provide a concise description of the entry's content and significance.
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <label for="entryType" class="form-label">Type *</label>
+                <InputSelect id="entryType" class="form-select" @bind-Value="entry.EntryType">
+                    <option value="">Select type...</option>
+                    <option value="academic">Academic</option>
+                    <option value="web">Web</option>
+                    <option value="media">Media</option>
+                    <option value="correspondence">Correspondence</option>
+                </InputSelect>
+                <div class="form-text">
+                    Academic: Research papers, books, articles
+                    Web: Online resources, websites, blog posts
+                    Media: Videos, podcasts, images
+                    Correspondence: Letters, emails, personal communications
+                </div>
+            </div>
+            <div class="col-md-6">
+                <label for="publishedAt" class="form-label">Published Date</label>
+                <InputDate id="publishedAt" class="form-control" @bind-Value="entry.PublishedAt" />
+                <div class="form-text">
+                    The original publication date of this work.
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label">Citation Fields</label>
+            <InputDataFields 
+                Collection="@citationFieldsCollection"
+                Schema="bibtex"
+                CollectionChanged="UpdateCitationFields" />
+            <div class="form-text">
+                Enter bibliographic information such as authors, DOI, URL, etc.
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <label class="form-label">Metadata Fields</label>
+            <InputDataFields 
+                Collection="@metadataFieldsCollection"
+                Schema="custom"
+                CollectionChanged="UpdateMetadataFields" />
+            <div class="form-text">
+                Add custom metadata fields like ratings, tags, or notes.
+            </div>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Save</button>
+            <button type="button" class="btn btn-secondary" @onclick="Cancel">Cancel</button>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    [Parameter] public string? Id { get; set; }
+    [Parameter] public string? CatalogId { get; set; }
+    private bool isNew => string.IsNullOrEmpty(Id);
+
+    private CreateEditEntryViewModel entry = new();
+    private DataFieldCollection citationFieldsCollection = new();
+    private DataFieldCollection metadataFieldsCollection = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!isNew)
+        {
+            try
+            {
+                var existing = await LibraryClient.GetEntryAsync(Id!);
+                if (existing != null)
+                {
+                    entry = new CreateEditEntryViewModel
+                    {
+                        Title = existing.Title,
+                        Description = existing.Description,
+                        EntryType = existing.EntryType,
+                        PublishedAt = existing.PublishedAt,
+                        CitationFields = existing.CitationFields,
+                        MetadataFields = existing.MetadataFields
+                    };
+                }
+                else
+                {
+                    Logger.LogWarning("Entry not found: {Id}", Id);
+                    Navigation.NavigateTo("/library");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error loading entry");
+                Navigation.NavigateTo("/library");
+            }
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        // Convert CitationFields from ViewModel to DataFieldCollection
+        citationFieldsCollection = new DataFieldCollection();
+        foreach (var field in entry.CitationFields)
+        {
+            citationFieldsCollection.AddField(new DataField
+            {
+                Key = field.Key,
+                Value = field.Value,
+                DataType = field.DataType,
+                Schema = "bibtex",
+                Order = field.Order,
+                Required = field.Required,
+                ValidationPattern = field.ValidationPattern
+            });
+        }
+
+        // Convert MetadataFields from ViewModel to DataFieldCollection
+        metadataFieldsCollection = new DataFieldCollection();
+        foreach (var field in entry.MetadataFields)
+        {
+            metadataFieldsCollection.AddField(new DataField
+            {
+                Key = field.Key,
+                Value = field.Value,
+                DataType = field.DataType,
+                Schema = "custom",
+                Order = field.Order,
+                Required = field.Required,
+                ValidationPattern = field.ValidationPattern
+            });
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            if (isNew && !string.IsNullOrEmpty(CatalogId))
+            {
+                Logger.LogInformation("Creating new entry in catalog: {CatalogId}", CatalogId);
+                await LibraryClient.CreateEntryAsync(CatalogId, entry);
+            }
+            else if (!isNew && !string.IsNullOrEmpty(Id))
+            {
+                Logger.LogInformation("Updating entry: {Id}", Id);
+                await LibraryClient.UpdateEntryAsync(Id, entry);
+            }
+            Navigation.NavigateTo("/library");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error saving entry: {Message}", ex.Message);
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/library");
+    }
+
+    private async Task UpdateCitationFields(DataFieldCollection collection)
+    {
+        entry.CitationFields = collection.Fields
+            .Select(f => new DataFieldViewModel
+            {
+                Key = f.Key,
+                Value = f.Value,
+                DataType = f.DataType,
+                Schema = f.Schema,
+                Order = f.Order,
+                Required = f.Required,
+                ValidationPattern = f.ValidationPattern
+            }).ToList();
+    }
+
+    private async Task UpdateMetadataFields(DataFieldCollection collection)
+    {
+        entry.MetadataFields = collection.Fields
+            .Select(f => new DataFieldViewModel
+            {
+                Key = f.Key,
+                Value = f.Value,
+                DataType = f.DataType,
+                Schema = f.Schema,
+                Order = f.Order,
+                Required = f.Required,
+                ValidationPattern = f.ValidationPattern
+            }).ToList();
+    }
+} 

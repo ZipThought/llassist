@@ -1,0 +1,94 @@
+@page "/library/catalogs/new"
+@page "/library/catalogs/{id}/edit"
+@rendermode InteractiveServer
+@inject LibraryApiClient LibraryClient
+@inject NavigationManager Navigation
+@inject ILogger<CatalogForm> Logger
+
+<PageTitle>@(isNew ? "Create Catalog" : "Edit Catalog")</PageTitle>
+
+<div class="content-card">
+    <h2>@(isNew ? "Create New Catalog" : "Edit Catalog")</h2>
+
+    <EditForm Model="@catalog" OnValidSubmit="HandleValidSubmit" FormName="catalogForm">
+        <DataAnnotationsValidator />
+        <ValidationSummary class="text-danger" />
+
+        <div class="mb-4">
+            <label for="name" class="form-label">Name *</label>
+            <InputText id="name" class="form-control" @bind-Value="catalog.Name" />
+        </div>
+
+        <div class="mb-4">
+            <label for="description" class="form-label">Description</label>
+            <InputTextArea id="description" class="form-control" rows="3" @bind-Value="catalog.Description" />
+        </div>
+
+        @if (isNew)
+        {
+            <div class="mb-4">
+                <label for="owner" class="form-label">Owner *</label>
+                <InputText id="owner" class="form-control" @bind-Value="catalog.Owner" />
+            </div>
+        }
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary">Save</button>
+            <button type="button" class="btn btn-secondary" @onclick="Cancel">Cancel</button>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    [Parameter] public string? Id { get; set; }
+    private bool isNew => string.IsNullOrEmpty(Id);
+
+    private CreateEditCatalogViewModel catalog = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!isNew)
+        {
+            try
+            {
+                var existing = await LibraryClient.GetCatalogAsync(Id!);
+                if (existing != null)
+                {
+                    catalog.Name = existing.Name;
+                    catalog.Description = existing.Description;
+                    catalog.Owner = existing.Owner;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error loading catalog");
+                Navigation.NavigateTo("/library");
+            }
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            if (isNew)
+            {
+                await LibraryClient.CreateCatalogAsync(catalog.Name, catalog.Description, catalog.Owner);
+            }
+            else
+            {
+                await LibraryClient.UpdateCatalogAsync(Id!, catalog.Name, catalog.Description);
+            }
+            Navigation.NavigateTo("/library");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error saving catalog");
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/library");
+    }
+} 

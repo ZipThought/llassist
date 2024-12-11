@@ -1,0 +1,270 @@
+@rendermode InteractiveServer
+@inject LibraryApiClient LibraryClient
+@inject NavigationManager Navigation
+@inject ILogger<CategoryManager> Logger
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Manage Categories</PageTitle>
+
+<div class="content-card">
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errorMessage
+            <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+        </div>
+    }
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Category Management</h2>
+        <div>
+            <button class="btn btn-primary" @onclick="() => ShowCreateDialog()">
+                Add Category
+            </button>
+        </div>
+    </div>
+
+    @if (categoryTree != null)
+    {
+        <div class="mb-3">
+            <small class="text-muted">
+                Schema Type: @selectedSchemaType |
+                Root Categories: @(categoryTree.RootCategories?.Count ?? 0)
+            </small>
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="mb-3">
+                <label class="form-label">Schema Type</label>
+                <select class="form-select" @bind="selectedSchemaType" @bind:after="HandleSchemaTypeChange">
+                    @foreach (var schema in schemaTypes)
+                    {
+                        <option value="@schema">@schema</option>
+                    }
+                </select>
+            </div>
+            
+            @if (categoryTree?.RootCategories != null)
+            {
+                <div class="category-tree">
+                    @if (!categoryTree.RootCategories.Any())
+                    {
+                        <div class="text-muted p-3">
+                            No categories found for schema type '@selectedSchemaType'
+                        </div>
+                    }
+                    else
+                    {
+                        <CategoryTreeView 
+                            Categories="categoryTree.RootCategories"
+                            OnSelectCategory="HandleCategorySelect"
+                            SelectedCategoryId="selectedCategoryId" />
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="col-md-8">
+            @if (selectedCategory != null)
+            {
+                <div class="category-details">
+                    <h3>@selectedCategory.Name</h3>
+                    <p class="text-muted">@selectedCategory.Path</p>
+                    <p>@selectedCategory.Description</p>
+                    
+                    <div class="mb-3">
+                        <h4>Entries (@selectedCategory.EntryIds.Count)</h4>
+                        @if (categoryEntries != null)
+                        {
+                            <div class="list-group">
+                                @foreach (var entry in categoryEntries)
+                                {
+                                    <div class="list-group-item">
+                                        <h5 class="mb-1">@entry.Title</h5>
+                                        <p class="mb-1">@entry.Description</p>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" @onclick="() => ShowEditDialog(selectedCategory)">
+                            Edit
+                        </button>
+                        <button class="btn btn-danger" @onclick="() => DeleteCategory(selectedCategory.Id)">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<CategoryDialog @ref="categoryDialog" 
+               OnSave="HandleCategorySave"
+               AvailableParents="GetAvailableParents()" />
+
+@code {
+    [Parameter] public string CatalogId { get; set; } = default!;
+    
+    private CategoryTreeViewModel? categoryTree;
+    private CategoryViewModel? selectedCategory;
+    private string? selectedCategoryId;
+    private string selectedSchemaType = "subject";
+    private List<string> schemaTypes = new() { "subject", "status", "type" };
+    private List<EntryViewModel>? categoryEntries;
+    private CategoryDialog categoryDialog = default!;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Logger.LogInformation("Initializing CategoryManager for catalog {CatalogId}", CatalogId);
+        await LoadCategoryTree();
+    }
+
+    private async Task LoadCategoryTree()
+    {
+        try
+        {
+            Logger.LogInformation("Loading categories for schema: {SchemaType}", selectedSchemaType);
+            categoryTree = await LibraryClient.GetCategoryTreeAsync(CatalogId, selectedSchemaType);
+            
+            // Force UI refresh
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error loading category tree");
+            errorMessage = "Failed to load categories";
+        }
+    }
+
+    private async Task HandleCategorySelect(string categoryId)
+    {
+        selectedCategoryId = categoryId;
+        selectedCategory = await LibraryClient.GetCategoryAsync(categoryId);
+        await LoadCategoryEntries();
+    }
+
+    private async Task LoadCategoryEntries()
+    {
+        if (selectedCategory != null)
+        {
+            categoryEntries = (await LibraryClient.GetEntriesByCategoryAsync(selectedCategory.Id)).ToList();
+        }
+    }
+
+    private List<CategoryViewModel> GetAvailableParents()
+    {
+        var parents = new List<CategoryViewModel>();
+        if (categoryTree?.RootCategories != null)
+        {
+            CollectCategories(categoryTree.RootCategories, parents);
+        }
+        return parents;
+    }
+
+    private void CollectCategories(IEnumerable<CategoryViewModel> categories, List<CategoryViewModel> result)
+    {
+        foreach (var category in categories)
+        {
+            result.Add(category);
+            CollectCategories(category.Children, result);
+        }
+    }
+
+    private void ShowCreateDialog()
+    {
+        categoryDialog.Show(null, selectedSchemaType);
+    }
+
+    private void ShowEditDialog(CategoryViewModel category)
+    {
+        categoryDialog.Show(category, category.SchemaType);
+    }
+
+    private async Task HandleCategorySave(CategoryViewModel category)
+    {
+        try
+        {
+            errorMessage = null;
+            if (string.IsNullOrEmpty(category.Id))
+            {
+                await LibraryClient.CreateCategoryAsync(CatalogId, category);
+            }
+            else
+            {
+                await LibraryClient.UpdateCategoryAsync(category.Id, category);
+            }
+            await LoadCategoryTree();
+        }
+        catch (HttpRequestException ex) when (ex.Message.Contains("400"))
+        {
+            errorMessage = "Invalid category data. Please check your input.";
+        }
+        catch (HttpRequestException ex) when (ex.Message.Contains("409"))
+        {
+            errorMessage = "This change would create a circular reference in the category hierarchy.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error saving category");
+            errorMessage = "Failed to save category. Please try again.";
+        }
+    }
+
+    private async Task DeleteCategory(string categoryId)
+    {
+        try
+        {
+            var category = categoryTree?.RootCategories
+                .FirstOrDefault(c => c.Id == categoryId)?.Name ?? "this category";
+            
+            var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", 
+                $"Are you sure you want to delete '{category}'? This will also delete all its subcategories.");
+
+            if (confirmed)
+            {
+                await LibraryClient.DeleteCategoryAsync(categoryId);
+                selectedCategory = null;
+                selectedCategoryId = null;
+                await LoadCategoryTree();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error deleting category");
+            errorMessage = "Failed to delete category";
+        }
+    }
+
+    private async Task HandleSchemaTypeChange()
+    {
+        // Clear selected category when schema changes
+        selectedCategory = null;
+        selectedCategoryId = null;
+        
+        // Reload the tree with new schema type
+        await LoadCategoryTree();
+    }
+}
+
+<style>
+.category-tree {
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    padding: 1rem;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.category-details {
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 0.25rem;
+}
+</style> 
