@@ -72,6 +72,7 @@ public class ModelMappers
     {
         return new ArticleViewModel
         {
+            Id = article.Id.ToString(),
             Title = article.Title,
             Authors = article.Authors,
             Year = article.Year,
