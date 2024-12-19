@@ -154,28 +154,46 @@ public class ArticleService
             using var csvWriter = new CsvWriter(streamWriter, csvConfig);
 
             // Write the header
-            csvWriter.WriteField("Title");
             csvWriter.WriteField("Authors");
             csvWriter.WriteField("Year");
+            csvWriter.WriteField("Title");
+            csvWriter.WriteField("DOI");
+            csvWriter.WriteField("Link");
             csvWriter.WriteField("Abstract");
+            csvWriter.WriteField("Topics");
+            csvWriter.WriteField("Entities");
+            csvWriter.WriteField("Keywords");
             csvWriter.WriteField("MustRead");
             csvWriter.WriteField("Question");
-            csvWriter.WriteField("RelevanceScore");
             csvWriter.WriteField("IsRelevant");
+            csvWriter.WriteField("RelevanceScore");
+            csvWriter.WriteField("RelevanceReason");
+            csvWriter.WriteField("IsContributing");
+            csvWriter.WriteField("ContributionScore");
+            csvWriter.WriteField("ContributionReason");
             csvWriter.NextRecord();
 
             foreach (var article in processedResults.ProcessedArticles)
             {
                 foreach (var relevance in article.Relevances)
                 {
-                    csvWriter.WriteField(article.Title);
                     csvWriter.WriteField(article.Authors);
                     csvWriter.WriteField(article.Year);
+                    csvWriter.WriteField(article.Title);
+                    csvWriter.WriteField(article.DOI);
+                    csvWriter.WriteField(article.Link);
                     csvWriter.WriteField(article.Abstract);
+                    csvWriter.WriteField(string.Join("; ", article.Topics));
+                    csvWriter.WriteField(string.Join("; ", article.Entities));
+                    csvWriter.WriteField(string.Join("; ", article.Keywords));
                     csvWriter.WriteField(article.MustRead);
                     csvWriter.WriteField(relevance.Question);
-                    csvWriter.WriteField(relevance.RelevanceScore);
                     csvWriter.WriteField(relevance.IsRelevant);
+                    csvWriter.WriteField(relevance.RelevanceScore);
+                    csvWriter.WriteField(relevance.RelevanceReason);
+                    csvWriter.WriteField(relevance.IsContributing);
+                    csvWriter.WriteField(relevance.ContributionScore);
+                    csvWriter.WriteField(relevance.ContributionReason);
                     csvWriter.NextRecord();
                 }
             }

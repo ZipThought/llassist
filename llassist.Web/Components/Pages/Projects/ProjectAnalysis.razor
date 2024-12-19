@@ -1,0 +1,453 @@
+@page "/project-analysis/{ProjectId}"
+@rendermode InteractiveServer
+
+@inject ProjectApiClient ProjectApiClient
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Project Analysis - @(project?.Name ?? "Loading...")</PageTitle>
+
+<ErrorBoundary>
+    <ChildContent>
+        <div class="content-card">
+            <div class="table-responsive">
+                <table class="table">
+                    <tbody>
+                        <tr>
+                            <th style="width: 30%">Project Name</th>
+                            <td>@project.Name</td>
+                        </tr>
+                        <tr>
+                            <th>Description</th>
+                            <td>@project.Description</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="d-flex align-items-center mb-3">
+                <h5 class="mb-0 me-3">Additional Details</h5>
+                <button class="btn btn-outline-primary" @onclick="ToggleAdditionalDetails">
+                    @(showAdditionalDetails ? "Hide" : "Show") Details
+                </button>
+            </div>
+
+            @if (showAdditionalDetails)
+            {
+                <div class="table-responsive">
+                    <table class="table">
+                        <tbody>
+                            <tr>
+                                <th style="width: 30%">Definitions</th>
+                                <td>
+                                    @if (project.ResearchQuestions?.Definitions?.Any() == true)
+                                    {
+                                        <ul class="list-unstyled">
+                                            @foreach (var definition in project.ResearchQuestions.Definitions)
+                                            {
+                                                <li>@definition</li>
+                                            }
+                                        </ul>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">No definitions available</span>
+                                    }
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>Research Questions</th>
+                                <td>
+                                    @if (project.ResearchQuestions?.Questions?.Any() == true)
+                                    {
+                                        <ul class="list-unstyled">
+                                            @foreach (var question in project.ResearchQuestions.Questions)
+                                            {
+                                                <li>
+                                                    <div>@question.Text</div>
+                                                    @if (question.Definitions?.Any() == true)
+                                                    {
+                                                        <table class="table table-sm table-bordered mt-2 mb-3">
+                                                            <thead>
+                                                                <tr>
+                                                                    <th>Definitions</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                @foreach (var definition in question.Definitions)
+                                                                {
+                                                                    <tr>
+                                                                        <td>@definition</td>
+                                                                    </tr>
+                                                                }
+                                                            </tbody>
+                                                        </table>
+                                                    }
+                                                </li>
+                                            }
+                                        </ul>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">No research questions available</span>
+                                    }
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+        <div class="content-card analysis-section">
+            <h5>Analysis</h5>
+            
+            @if (!string.IsNullOrEmpty(processResult.JobId))
+            {
+                <div class="progress mb-2 border analysis-progress-container">
+                    <div class="progress-bar progress-bar-striped analysis-progress-indicator" 
+                        role="progressbar" 
+                        style="width: @(processResult.Progress)%"
+                        aria-valuenow="@processResult.Progress" 
+                        aria-valuemin="0" 
+                        aria-valuemax="100">
+                        @processResult.Progress%
+                    </div>
+                </div>
+
+                @if (processResult.Progress < 100)
+                {
+                    <div class="alert alert-info mb-3">
+                        Analysis in progress. Please wait...
+                    </div>
+                }
+            }
+
+            <div class="btn-group">
+                <button type="button"
+                        class="btn btn-primary"
+                        @onclick:stopPropagation
+                        @onclick="ProcessProject"
+                        disabled="@(IsProcessing)">
+                    @if (IsProcessing)
+                    {
+                        <span class="spinner-border spinner-border-sm" role="status"></span>
+                    }
+                    Start New Analysis
+                </button>
+
+                <button type="button"
+                        class="btn btn-success"
+                        @onclick:stopPropagation
+                        @onclick="DownloadProject"
+                        disabled="@(!HasResults)">
+                    Export Latest Result
+                </button>
+            </div>
+        </div>
+        <div class="content-card">
+            <h4 class="text-primary">Processed Articles</h4>
+
+            @if (processResult.ProcessedArticles.Any())
+            {
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="text-muted">
+                        Showing @((currentPage - 1) * ITEMS_PER_PAGE + 1) - @Math.Min(currentPage * ITEMS_PER_PAGE, processResult.ProcessedArticles.Count) 
+                        of @processResult.ProcessedArticles.Count articles
+                    </div>
+                </div>
+
+                @if (isLoading)
+                {
+                    <div class="d-flex justify-content-center my-3">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                }
+
+                <div class="article-grid">
+                    @foreach (var article in CurrentPageItems)
+                    {
+                        <div class="article-card shadow-sm border rounded p-3">
+                            <div class="article-header border-bottom pb-2">
+                                <h6 class="article-title fw-bold text-primary">@article.Title</h6>
+                                <div class="article-meta text-muted">
+                                    <span class="authors">@string.Join(", ", article.Authors)</span>
+                                    <span class="year fw-bold">(@article.Year)</span>
+                                </div>
+                            </div>
+
+                            <div class="article-content mt-3">
+                                @if (!string.IsNullOrEmpty(article.Abstract))
+                                {
+                                    <div class="article-abstract">
+                                        <strong class="text-secondary">Abstract:</strong>
+                                        <p class="text-muted">
+                                            @(article.Abstract.Length > 200 
+                                                ? article.Abstract[..200] + "..." 
+                                                : article.Abstract)
+                                        </p>
+                                    </div>
+                                }
+
+                                <div class="questions-list">
+                                    <strong class="text-secondary">Research Questions:</strong>
+                                    <ul class="list-unstyled mt-2">
+                                        @foreach (var relevance in article.Relevances)
+                                        {
+                                            <li class="mb-4 pb-3 border-bottom">
+                                                <div class="question-text mb-2 fw-bold fs-6">@relevance.Question</div>
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <ScoreDisplay 
+                                                            IsPositive="@relevance.IsRelevant"
+                                                            BadgeText="@(relevance.IsRelevant ? "Relevant" : "Not Relevant")"
+                                                            ScoreLabel="Relevance Score"
+                                                            Score="@relevance.RelevanceScore"
+                                                            PositiveColorClass="bg-success"
+                                                            ReasonText="@relevance.RelevanceReason" />
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <ScoreDisplay 
+                                                            IsPositive="@relevance.IsContributing"
+                                                            BadgeText="@(relevance.IsContributing ? "Contributing" : "Not Contributing")"
+                                                            ScoreLabel="Contribution Score"
+                                                            Score="@relevance.ContributionScore"
+                                                            PositiveColorClass="bg-primary"
+                                                            ReasonText="@relevance.ContributionReason" />
+                                                    </div>
+                                                </div>
+                                            </li>
+                                        }
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <nav class="d-flex justify-content-center mt-4">
+                    <ul class="pagination">
+                        <li class="page-item @(IsDisabled(1) ? "disabled" : "")">
+                            <button class="page-link text-primary" @onclick="() => ChangePage(1)" title="First page">&laquo;</button>
+                        </li>
+                        <li class="page-item @(IsDisabled(1) ? "disabled" : "")">
+                            <button class="page-link text-primary" @onclick="() => ChangePage(currentPage - 1)">Previous</button>
+                        </li>
+                        
+                        @foreach (var pageNumber in GetPageRange())
+                        {
+                            <li class="page-item @(pageNumber == currentPage ? "active" : "")">
+                                <button class="page-link" @onclick="() => ChangePage(pageNumber)">@pageNumber</button>
+                            </li>
+                        }
+                        
+                        <li class="page-item @(currentPage == TotalPages ? "disabled" : "")">
+                            <button class="page-link text-primary" @onclick="() => ChangePage(currentPage + 1)">Next</button>
+                        </li>
+                        <li class="page-item @(currentPage == TotalPages ? "disabled" : "")">
+                            <button class="page-link text-primary" @onclick="() => ChangePage(TotalPages)" title="Last page">&raquo;</button>
+                        </li>
+                    </ul>
+                </nav>
+            }
+            else
+            {
+                <div class="alert alert-info">
+                    No processed articles available. Start an analysis to see results.
+                </div>
+            }
+        </div>
+    </ChildContent>
+    <ErrorContent>
+        <div class="alert alert-danger">
+            An error occurred while loading the project. Please try again later.
+        </div>
+    </ErrorContent>
+</ErrorBoundary>
+
+<style>
+    .analysis-progress-container {
+        height: 25px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .analysis-progress-indicator {
+        font-size: 16px;
+    }
+
+        .article-grid {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .article-card {
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        padding: 1rem;
+        background-color: #fff;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .article-title {
+        margin-bottom: 0.5rem;
+        color: #212529;
+    }
+
+    .article-meta {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-bottom: 0.5rem;
+    }
+
+    .article-abstract {
+        font-size: 0.9rem;
+        color: #495057;
+        margin-bottom: 1rem;
+    }
+
+    .questions-list {
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+    }
+
+    .questions-list ul {
+        margin: 0.5rem 0;
+        padding-left: 1.5rem;
+    }
+
+    .relevance-score {
+        font-size: 0.875rem;
+    }
+
+    .relevance-score .progress {
+        height: 0.5rem;
+        margin-top: 0.25rem;
+    }
+</style>
+
+<script>
+    window.downloadFileFromStream = (fileName, base64String) => {
+        const link = document.createElement('a');
+        link.download = fileName;
+        link.href = "data:application/octet-stream;base64," + base64String;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+</script>
+
+@code {
+    private const int ITEMS_PER_PAGE = 2;
+    private const int PAGE_RANGE = 2;
+    [Parameter]
+    public string ProjectId { get; set; } = string.Empty;
+
+    private ProjectViewModel project = new();
+    private bool showAdditionalDetails;
+    private ProcessResultViewModel processResult = new();
+    private int currentPage = 1;
+    private IEnumerable<ArticleViewModel> CurrentPageItems { get; set; } = Enumerable.Empty<ArticleViewModel>();
+
+    private bool isLoading;
+
+    private int TotalPages => 
+        processResult?.ProcessedArticles?.Any() == true 
+            ? (int)Math.Ceiling(processResult.ProcessedArticles.Count / (double)ITEMS_PER_PAGE) 
+            : 1;
+    
+    private bool IsDisabled(int page) => page == currentPage;
+    
+    private bool IsProcessing => !string.IsNullOrEmpty(processResult.JobId) && processResult.Progress < 100;
+    
+    private bool HasResults => processResult?.JobId != null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        showAdditionalDetails = false;
+
+        var projectQueryResult = await ProjectApiClient.GetProjectAsync(ProjectId);
+
+        if (projectQueryResult != null)
+        {
+            project = projectQueryResult;
+
+            await GetProcess();
+            await ChangePage(1);
+        }
+    }
+
+    private async Task GetProcess()
+    {
+        var processResultQuery = await ProjectApiClient.GetProgressAsync(ProjectId);
+        
+        if (processResultQuery != null)
+        {
+            processResult = processResultQuery;
+        }
+    }
+
+    private async Task ProcessProject()
+    {
+        await ProjectApiClient.ProcessArticlesAsync(ProjectId);
+        await GetProcess();
+    }
+
+    private async Task DownloadProject()
+    {
+        var fileBytes = await ProjectApiClient.DownloadResultsAsync(ProjectId);
+        if (fileBytes != null && fileBytes.Length > 0)
+        {
+            // Create a download filename using the project name and current timestamp
+            var fileName = $"{project.Name ?? "project"}_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+                
+            // Use JSRuntime to trigger the file download
+            await JSRuntime.InvokeVoidAsync("downloadFileFromStream", fileName, Convert.ToBase64String(fileBytes));
+        }
+    }
+
+    private void ToggleAdditionalDetails()
+    {
+        showAdditionalDetails = !showAdditionalDetails;
+        StateHasChanged();
+    }
+    
+    private IEnumerable<int> GetPageRange()
+    {
+        if (processResult?.ProcessedArticles?.Any() != true)
+            return new[] { 1 };
+            
+        var start = Math.Max(1, currentPage - PAGE_RANGE);
+        var end = Math.Min(TotalPages, currentPage + PAGE_RANGE);
+        return Enumerable.Range(start, end - start + 1);
+    }
+
+    private async Task ChangePage(int page)
+    {
+        try 
+        {
+            isLoading = true;
+            
+            if (processResult?.ProcessedArticles == null)
+            {
+                CurrentPageItems = Enumerable.Empty<ArticleViewModel>();
+                return;
+            }
+
+            var totalPages = TotalPages;
+            if (page >= 1 && page <= totalPages)
+            {
+                currentPage = page;
+
+                // For now we are just skipping and taking the items from the list
+                // In ideal scenario, we should be fetching the items from the server
+                CurrentPageItems = processResult.ProcessedArticles
+                    .Skip((currentPage - 1) * ITEMS_PER_PAGE)
+                    .Take(ITEMS_PER_PAGE);
+            }
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}
